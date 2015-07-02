@@ -1,0 +1,87 @@
+from geogps import Parser
+from geogps.Aux import DefaultOrderedDict
+
+import collections
+import os
+import pickle
+import sys
+
+
+def dd_set():
+    return collections.defaultdict(set)
+
+
+def dd_list():
+    return collections.defaultdict(list)
+
+
+def ddd_list():
+    return collections.defaultdict(dd_list)
+
+
+def dddd_list():
+    return collections.defaultdict(ddd_list)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print("Usage: %s" % (sys.argv[0]) +
+              "<data directory>"
+              "<output directory>")
+        sys.exit(-1)
+
+    inputData = sys.argv[1]
+    outputPath = sys.argv[2]
+    scriptDir = os.path.dirname(os.path.abspath(__file__))
+
+    inputData = Parser.parsePath(inputData, scriptDir)
+
+    with open(inputData + '/parsedData.pck', 'rb') as f:
+        rs = pickle.load(f)
+
+    localizedBlues = rs['localizedBlues']
+    stopLocations = rs['stopLocs']
+
+    ''' Infer the friends for each time period. You are friends
+    if you have met somewhere else than university of each period '''
+    outgoingFriends = collections.defaultdict(dd_list)
+    for user, timePeriods in localizedBlues.items():
+        for timePeriod, observations in timePeriods.items():
+            friendsInPeriod = list()
+            if observations:
+                for locationIndex, observation in observations.items():
+                    peers = observation.keys()
+                    con = list(stopLocations[str(user)][timePeriod].values())[locationIndex][1]
+                    if con != 'university':  # Potentially exclude the home
+                        # location because of the dormitories
+                        [friendsInPeriod.append(friend) for friend in peers]
+            outgoingFriends[str(user)][timePeriod] = collections.Counter(friendsInPeriod)
+
+    ''' Filter friends you only meet once '''
+    filteredOutgoingFriends = collections.defaultdict(dd_list)
+    for user, timePeriods in outgoingFriends.items():
+        for timePeriod, peers in timePeriods.items():
+            filteredPeers = [k for k,v in peers.items() if v > 1]
+            filteredOutgoingFriends[user][timePeriod] = filteredPeers
+
+    ''' Creat incoming links '''
+    incomingFriends = collections.defaultdict(dd_set)
+    for user, timePeriods in filteredOutgoingFriends.items():
+        for timePeriod, peers in timePeriods.items():
+            for peer in peers:
+                incomingFriends[peer][timePeriod].add(user)
+
+    ''' Make the network symmetric '''
+    friends = collections.defaultdict(dd_set)
+    for user, timePeriods in outgoingFriends.items():
+        for timePeriod, peers in timePeriods.items():
+            for peer in peers:
+                friends[peer][timePeriod].add(user)
+
+    for user, timePeriods in incomingFriends.items():
+        for timePeriod, peers in timePeriods.items():
+            for peer in peers:
+                friends[peer][timePeriod].add(user)
+
+
+    ''' Measure change in the networks '''

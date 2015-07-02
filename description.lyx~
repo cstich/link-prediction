@@ -1,0 +1,892 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Section
+Definitions
+\end_layout
+
+\begin_layout Subsection
+Friendship: 
+\end_layout
+
+\begin_layout Standard
+Defined as having met another node at least twice after 5 PM or having met
+ another node at least twice in a context that is not 
+\begin_inset Quotes eld
+\end_inset
+
+university.
+\begin_inset Quotes erd
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Personalized Page Rank
+\end_layout
+
+\begin_layout Itemize
+Briefly, a personalized PageRank is like standard PageRank, except that
+ when randomly teleporting to a new node, the surfer always teleports back
+ to the given source node being personalized (rather than to a node chosen
+ uniformly at random, as in the classic PageRank algorithm).
+\end_layout
+
+\begin_layout Itemize
+That is, the random surfer in the personalized PageRank model works as follows:
+\end_layout
+
+\begin_layout Itemize
+He starts at the source node X that we want to calculate a personalized
+ PageRank around.
+ At step i: with probability p, the surfer moves to a neighboring node chosen
+ uniformly at random; with probability 1−p, the surfer instead teleports
+ back to the original source node X.
+ The limiting probability that the surfer is at node N is then the personalized
+ PageRank score of node N around X.
+ 
+\end_layout
+
+\begin_layout Subsection
+Mean Average Precision
+\end_layout
+
+\begin_layout Standard
+Some simplification of the Mean Average Precision measure is used to score
+ the predictions.
+ At the moment though order doesn't matter.
+\end_layout
+
+\begin_layout Section
+Data
+\end_layout
+
+\begin_layout Standard
+I split the whole observation period into bins of roughly 2 months (58.1538461538
+4615 days).
+ 
+\end_layout
+
+\begin_layout Standard
+Some statistics for the networks are:
+\end_layout
+
+\begin_layout Paragraph
+Densities
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Tabular
+<lyxtabular version="3" rows="8" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Time
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Densities
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+period 0 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.1903112155020552
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+period 1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.12237228420434527
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+period 2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+ 0.08620082207868468
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+period 3
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.11374045801526718
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+period 4
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+ 0.030651790957134467
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+period 5
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.033294186729301234
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+period 6
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.020963006459189665
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Paragraph
+Change
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="7" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Time
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Change
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+period 0 / 1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.5146446713030797
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+period 1 / 2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+ 0.5466301605038167
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+period2 / 3
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.33860487310217624
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+period 3 / 4
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+ 0.6502059053707042
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+period 4 / 5 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.28102191580190716
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+period 5 / 6 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.32237759319753106
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Models
+\end_layout
+
+\begin_layout Subsection
+Goal
+\end_layout
+
+\begin_layout Standard
+The goal of the models is to see whether given a set of feature at t
+\begin_inset script subscript
+
+\begin_layout Plain Layout
+0 
+\end_layout
+
+\end_inset
+
+you can predict whether there will be an edge (in this case a friendship)
+ between nodes at point t
+\begin_inset script subscript
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+General approach
+\end_layout
+
+\begin_layout Standard
+In order to run a machine learning algorithm to recommend edges (which would
+ take two nodes, a source and a candidate destination, and generate a score
+ measuring the likelihood that the source would follow the destination),
+ it’s necessary to prune the set of candidates to run the algorithm on.
+ The approach was to calculate a personalized PageRank around each source
+ node.
+\end_layout
+
+\begin_layout Standard
+I then only considered the 25 highest scoring candidate nodes for the next
+ step.
+ After pruning the set of candidate destination nodes to a more feasible
+ level, I fed pairs of (source, destination) nodes into a machine learning
+ model.
+ In this case a random forest model.
+\end_layout
+
+\begin_layout Subsection
+Base 
+\end_layout
+
+\begin_layout Standard
+Features: 
+\end_layout
+
+\begin_layout Itemize
+Time spent together with another node
+\end_layout
+
+\begin_layout Standard
+To add:
+\end_layout
+
+\begin_layout Itemize
+Adamic Adar scores
+\end_layout
+
+\begin_layout Itemize
+Network similarity measures
+\end_layout
+
+\begin_layout Subsection
+Social
+\end_layout
+
+\begin_layout Standard
+Base model + additional features:
+\end_layout
+
+\begin_layout Itemize
+Spatial-triadic closure
+\end_layout
+
+\begin_layout Itemize
+Potential spatial-triadic closure
+\end_layout
+
+\begin_layout Itemize
+Number of other people present
+\end_layout
+
+\begin_layout Subsection
+Time
+\end_layout
+
+\begin_layout Standard
+Base model + additional features:
+\end_layout
+
+\begin_layout Itemize
+Mode of the hour of the day 
+\end_layout
+
+\begin_layout Itemize
+Mode of the day of the week
+\end_layout
+
+\begin_layout Itemize
+Mode of the hour of the week
+\end_layout
+
+\begin_layout Subsection
+Place
+\end_layout
+
+\begin_layout Standard
+Base model + additional features:
+\end_layout
+
+\begin_layout Itemize
+Met at home
+\end_layout
+
+\begin_layout Itemize
+Met at university
+\end_layout
+
+\begin_layout Itemize
+Met at third place
+\end_layout
+
+\begin_layout Subsection
+Social & Time
+\end_layout
+
+\begin_layout Standard
+Features: Combination of social and time model
+\end_layout
+
+\begin_layout Subsection
+Place & Time
+\end_layout
+
+\begin_layout Standard
+Features: Combination of place and time model
+\end_layout
+
+\begin_layout Subsection
+Social & Place
+\end_layout
+
+\begin_layout Standard
+Features: Combination of social and place model
+\end_layout
+
+\begin_layout Subsection
+Social & Place & Time
+\end_layout
+
+\begin_layout Standard
+Features: Combination of all features
+\end_layout
+
+\begin_layout Section
+Outcomes
+\end_layout
+
+\begin_layout Standard
+At the moment I split the data into 10 bins and use 9 bins to train a random
+ forest model and test it on the 10th bin.
+\end_layout
+
+\begin_layout Standard
+As a measure the Mean Average Precision of the predicted links was used.
+ The outcomes for the first time-step are as follows:
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Tabular
+<lyxtabular version="3" rows="9" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Model
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+MAP
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+base
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.8429072629997929 
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+time
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.9186540879105468
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+social
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.920801185866502 
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+place
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.842442824165898 
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+social & time
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.9403508668997127
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+place & time
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+ 0.9206597144806115 
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+social & place 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.9203355958501043
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+social & place & time
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+ 0.9405911908613162
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Next steps
+\end_layout
+
+\begin_layout Itemize
+Do the analysis for all time steps
+\end_layout
+
+\begin_layout Itemize
+Add additional features
+\end_layout
+
+\begin_layout Itemize
+Assess the importance of the features
+\end_layout
+
+\begin_layout Itemize
+Update MAP measure
+\end_layout
+
+\begin_layout Itemize
+Make sure the 
+\begin_inset Quotes eld
+\end_inset
+
+met at home
+\begin_inset Quotes erd
+\end_inset
+
+ metric works
+\end_layout
+
+\begin_layout Section
+Open questions
+\end_layout
+
+\begin_layout Itemize
+How to best define friendship?
+\end_layout
+
+\begin_layout Itemize
+How many bins for testing?
+\end_layout
+
+\begin_layout Itemize
+What time periods to consider? All or just the first few as they are densest?
+\end_layout
+
+\end_body
+\end_document
