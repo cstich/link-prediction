@@ -1,6 +1,6 @@
 from geogps import Parser
 from geogps import TimeAux
-from geogps.Aux import DefaultOrderedDict
+from geogps.DictAux import dd_list, dd_set, DefaultOrderedDict
 
 import collections
 import os
@@ -10,22 +10,6 @@ import statistics
 import sys
 
 amsterdam = pytz.timezone('Europe/Amsterdam')
-
-
-def dd_set():
-    return collections.defaultdict(set)
-
-
-def dd_list():
-    return collections.defaultdict(list)
-
-
-def ddd_list():
-    return collections.defaultdict(dd_list)
-
-
-def dddd_list():
-    return collections.defaultdict(ddd_list)
 
 
 def calculateDifference(x, y):
@@ -42,19 +26,21 @@ def calculateDifference(x, y):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: %s" % (sys.argv[0]) +
-              "<data directory>"
+    if len(sys.argv) != 4:
+        print("Usage: %s " % (sys.argv[0]) +
+              "<data path> "
+              "<min. number of meetings> "
               "<output directory>")
         sys.exit(-1)
 
     inputData = sys.argv[1]
-    outputPath = sys.argv[2]
+    minNumberOfMeetings = int(sys.argv[2])
+    outputPath = sys.argv[3]
     scriptDir = os.path.dirname(os.path.abspath(__file__))
 
     inputData = Parser.parsePath(inputData, scriptDir)
 
-    with open(inputData + '/parsedData.pck', 'rb') as f:
+    with open(inputData, 'rb') as f:
         rs = pickle.load(f)
 
     localizedBlues = rs['localizedBlues']
@@ -81,7 +67,8 @@ if __name__ == "__main__":
     for user, timePeriods in outgoingFriends.items():
         for timePeriod, peers in timePeriods.items():
             filteredPeers = collections.Counter(peers)
-            filteredPeers = [k for k, v in filteredPeers.items() if v > 0]
+            filteredPeers = [k for k, v in filteredPeers.items()
+                             if v > minNumberOfMeetings]
             filteredOutgoingFriends[str(user)][timePeriod] = filteredPeers
 
     ''' Creat incoming links '''
@@ -122,7 +109,8 @@ if __name__ == "__main__":
     for user, timePeriods in outgoingTimeFriends.items():
         for timePeriod, peers in timePeriods.items():
             filteredPeers = collections.Counter(peers)
-            filteredPeers = [k for k, v in filteredPeers.items() if v > 0]
+            filteredPeers = [k for k, v in filteredPeers.items()
+                             if v > minNumberOfMeetings]
             filteredOutgoingTimeFriends[str(user)][timePeriod] = filteredPeers
 
     incomingTimeFriends = collections.defaultdict(dd_set)
@@ -254,6 +242,6 @@ if __name__ == "__main__":
             else:
                 line = user + '\n'
             lines.append(line)
-        with open('./results/' + filename, 'w') as f:
+        with open(outputPath + filename, 'w') as f:
             for line in lines:
                 f.write(line)

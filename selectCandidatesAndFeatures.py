@@ -1,5 +1,6 @@
 from geogps import Aux
 from geogps import Parser
+from geogps.DictAux import dd_dict, dd_list
 
 from Metrics import UserMetrics
 from Metrics import friendFriends
@@ -11,7 +12,6 @@ import copy
 import networkx as nx
 import numpy as np
 import os
-import pickle
 import pytz
 import re
 import sys
@@ -19,39 +19,25 @@ import sys
 amsterdam = pytz.timezone('Europe/Amsterdam')
 
 
-def dd_dict():
-    return collections.defaultdict(dict)
-
-
-def dd_set():
-    return collections.defaultdict(set)
-
-
-def dd_float():
-    return collections.defaultdict(float)
-
-
-def dd_list():
-    return collections.defaultdict(list)
-
-
-def ddd_float():
-    return collections.defaultdict(dd_float)
-
-
-def ddd_list():
-    return collections.defaultdict(dd_list)
-
-
-def dddd_list():
-    return collections.defaultdict(ddd_list)
+def setNetworkFeatures(features, name, edge):
+    try:
+        features[time][edge[0]][name][edge[1]] = edge[2]
+    except (TypeError, KeyError):
+        features[time][edge[0]][name] = collections.defaultdict(float)
+        features[time][edge[0]][name][edge[1]] = edge[2]
+    try:
+        features[time][edge[1]][name][edge[0]] = edge[2]
+    except (TypeError, KeyError):
+        features[time][edge[1]][name] = collections.defaultdict(float)
+        features[time][edge[1]][name][edge[0]] = edge[2]
+    return features
 
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
         print("Usage: %s" % (sys.argv[0]) +
-              "<data directory>"
-              "<networks directory>"
+              "<data directory> "
+              "<networks directory> "
               "<output directory>")
         sys.exit(-1)
 
@@ -60,10 +46,9 @@ if __name__ == "__main__":
     outputPath = sys.argv[3]
     scriptDir = os.path.dirname(os.path.abspath(__file__))
 
-    inputData = Parser.parsePath(inputData, scriptDir)
-
-    with open(inputData + '/parsedData.pck', 'rb') as f:
-        rs = pickle.load(f)
+    inputFilePattern = re.compile('parsedData[\-\_a-zA-Z0-9]*\.pck')
+    rs = Parser.loadPickles(inputData, inputFilePattern,
+                            matchUser=False)[0]
 
     localizedBlues = rs['localizedBlues']
     stopLocations = rs['stopLocs']
@@ -88,13 +73,6 @@ if __name__ == "__main__":
                 networks[key][node].extend(peers)
                 for peer in peers:
                     nxNetworks[key].add_edge(node, peer)
-
-    ''' Find candidates '''
-    candidates = collections.defaultdict(dict)
-    for time, network in networks.items():
-        ppr = PersonalizedPageRank(network, network)
-        for user, peers in network.items():
-            candidates[time][user] = ppr.pageRank(user)
 
     ''' Generate featues '''
     features = collections.defaultdict(dd_dict)
@@ -123,85 +101,26 @@ if __name__ == "__main__":
     ''' Add network measures to features '''
     for time, network in nxNetworks.items():
         for e in nx.adamic_adar_index(network):  # Adamic adar
-            try:
-                features[time][e[0]]['adamicAdar'][e[1]] = e[2]
-            except TypeError:
-                features[time][e[0]]['adamicAdar'] = collections.defaultdict(float)
-                features[time][e[0]]['adamicAdar'][e[1]] = e[2]
-            try:
-                features[time][e[1]]['adamicAdar'][e[0]] = e[2]
-            except TypeError:
-                features[time][e[1]]['adamicAdar'] = collections.defaultdict(float)
-                features[time][e[1]]['adamicAdar'][e[0]] = e[2]
+            features = setNetworkFeatures(features, 'adamicAdar', e)
         for e in nx.jaccard_coefficient(network):  # Jaccard coefficient
-            try:
-                features[time][e[0]]['jaccard'][e[1]] = e[2]
-            except TypeError:
-                features[time][e[0]]['jaccard'] = collections.defaultdict(float)
-                features[time][e[0]]['jaccard'][e[1]] = e[2]
-            try:
-                features[time][e[1]]['jaccard'][e[0]] = e[2]
-            except TypeError:
-                features[time][e[1]]['jaccard'] = collections.defaultdict(float)
-                features[time][e[1]]['jaccard'][e[0]] = e[2]
+            features = setNetworkFeatures(features, 'jaccard', e)
         for e in nx.preferential_attachment(network):  # Preferential attachment
-            try:
-                features[time][e[0]]['PA'][e[1]] = e[2]
-            except TypeError:
-                features[time][e[0]]['PA'] = collections.defaultdict(float)
-                features[time][e[0]]['PA'][e[1]] = e[2]
-            try:
-                features[time][e[1]]['PA'][e[0]] = e[2]
-            except TypeError:
-                features[time][e[1]]['PA'] = collections.defaultdict(float)
-                features[time][e[1]]['PA'][e[0]] = e[2]
+            features = setNetworkFeatures(features, 'PA', e)
         for e in nx.resource_allocation_index(network):  # Ressource allocation
-            try:
-                features[time][e[0]]['resourceAllocation'][e[1]] = e[2]
-            except TypeError:
-                features[time][e[0]]['resourceAllocation'] = collections.defaultdict(float)
-                features[time][e[0]]['resourceAllocation'][e[1]] = e[2]
-            try:
-                features[time][e[1]]['resourceAllocation'][e[0]] = e[2]
-            except TypeError:
-                features[time][e[1]]['resourceAllocation'] = collections.defaultdict(float)
-                features[time][e[1]]['resourceAllocation'][e[0]] = e[2]
+            features = setNetworkFeatures(features, 'resourceAllocation', e)
         '''
         for e in nx.cn_soundarajan_hopcroft(network):  # Commnon neighbors
-            # using community information
-            try:
-                features[time][e[0]]['commonNeighborsCommunity'][e[1]] = e[2]
-            except TypeError:
-                features[time][e[0]]['commonNeighborsCommunity'] = collections.defaultdict(float)
-                features[time][e[0]]['commonNeighborsCommunity'][e[1]] = e[2]
-            try:
-                features[time][e[1]]['commonNeighborsCommunity'][e[0]] = e[2]
-            except TypeError:
-                features[time][e[1]]['commonNeighborsCommunity'] = collections.defaultdict(float)
-                features[time][e[1]]['commonNeighborsCommunity'][e[0]] = e[2]
         for e in nx.ra_index_soundarajan_hopcroft(network):
-            try:
-                features[time][e[0]]['ressourceAllocationCommunity'][e[1]] = e[2]
-            except TypeError:
-                features[time][e[0]]['ressourceAllocationCommunity'] = collections.defaultdict(float)
-                features[time][e[0]]['ressourceAllocationCommunity'][e[1]] = e[2]
-            try:
-                features[time][e[1]]['ressourceAllocationCommunity'][e[0]] = e[2]
-            except TypeError:
-                features[time][e[1]]['ressourceAllocationCommunity'] = collections.defaultdict(float)
-                features[time][e[1]]['ressourceAllocationCommunity'][e[0]] = e[2]
         for e in nx.within_inter_cluster(network):
-            try:
-                features[time][e[0]]['withinInterCluster'][e[1]] = e[2]
-            except TypeError:
-                features[time][e[0]]['withinInterCluster'] = collections.defaultdict(float)
-                features[time][e[0]]['withinInterCluster'][e[1]] = e[2]
-            try:
-                features[time][e[1]]['withinInterCluster'][e[0]] = e[2]
-            except TypeError:
-                features[time][e[1]]['withinInterCluster'] = collections.defaultdict(float)
-                features[time][e[1]]['withinInterCluster'][e[0]] = e[2]
         '''
+
+    ''' Find candidates '''
+    # TODO Try weighing candidates by something
+    candidates = collections.defaultdict(dict)
+    for time, network in networks.items():
+        ppr = PersonalizedPageRank(network, network)
+        for user, peers in network.items():
+            candidates[time][user] = ppr.pageRank(user)
 
     ''' Find the propagation scores '''
     for time, network in networks.items():
@@ -228,6 +147,11 @@ if __name__ == "__main__":
         'metAtHome',
         'metAtUniversity',
         'metAtThirdPlace',
+        'metAtOtherPlace',
+        'timeSpentAtHomeWith',
+        'timeSpentAtUniversityWith',
+        'timeSpentAtThirdPlaceWith',
+        'timeSpentAtOtherPlaceWith',
         'relativeImportance',
         'adamicAdar',
         'jaccard',
@@ -238,7 +162,7 @@ if __name__ == "__main__":
         'ressourceAllocationCommunity',
         'withinInterCluster']
 
-    for i in range(1, len(timeIntervalls[0:4])):
+    for i in range(1, len(timeIntervalls)):
         t_0 = timeIntervalls[i-1]
         t_1 = timeIntervalls[i]
         print('Working on timestep ', str(t_0))

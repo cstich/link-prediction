@@ -1,0 +1,264 @@
+----------------------------------------------------------------------
+----------------------------------------------------------------------
+Defintion you have to have met at least once after 5PM or in another context than university
+----------------------------------------------------------------------
+----------------------------------------------------------------------
+
+----------------------------------------------------------------------
+33.6 days
+----------------------------------------------------------------------
+
+Average change period (hybrid) 0 / 1 :  0.4849260296400583
+Average change period (hybrid) 1 / 2 :  0.5798160728896411
+Average change period (hybrid) 2 / 3 :  0.26272239566792394
+Average change period (hybrid) 3 / 4 :  0.39888538624161235
+Average change period (hybrid) 4 / 5 :  0.638051452200869
+Average change period (hybrid) 5 / 6 :  0.25909083723499493
+Average change period (hybrid) 6 / 7 :  0.2714020783348516
+Average change period (hybrid) 7 / 8 :  0.3656086474519344
+
+Densities period  0 :  0.15983558426306518
+Densities period  1 :  0.11873165002935995
+Densities period  2 :  0.05513799177921316
+Densities period  3 :  0.09753376394597768
+Densities period  4 :  0.09647680563711097
+Densities period  5 :  0.027657075748678803
+Densities period  6 :  0.028009395184967704
+Densities period  7 :  0.024721080446271287
+Densities period  8 :  0.010569583088667059
+
+----------------------------------------------------------------------
+42.0 days
+----------------------------------------------------------------------
+
+Average change period (hybrid) 0 / 1 :  0.5146446713030797
+Average change period (hybrid) 1 / 2 :  0.5466301605038167
+Average change period (hybrid) 2 / 3 :  0.33860487310217624
+Average change period (hybrid) 3 / 4 :  0.6502059053707042
+Average change period (hybrid) 4 / 5 :  0.28102191580190716
+Average change period (hybrid) 5 / 6 :  0.32237759319753106
+
+Densities period  0 :   0.1903112155020552
+Densities period  1 :   0.12237228420434527
+Densities period  2 :   0.08620082207868468
+Densities period  3 :   0.11374045801526718
+Densities period  4 :   0.030651790957134467
+Densities period  5 :   0.033294186729301234
+Densities period  6 :   0.020963006459189665
+
+----------------------------------------------------------------------
+56.0 days
+----------------------------------------------------------------------
+
+Average change period (hybrid) 0 / 1 :  0.6598654808012517
+Average change period (hybrid) 1 / 2 :  0.3484773759137657
+Average change period (hybrid) 2 / 3 :  0.6277119184917891
+Average change period (hybrid) 3 / 4 :  0.3871020618591311
+
+Densities period  0 :  0.24627128596594244
+Densities period  1 :  0.09759248385202583
+Densities period  2 :  0.13317674691720494
+Densities period  3 :  0.04944216089254257
+Densities period  4 :  0.028244274809160305
+
+
+----------------------------------------------------------------------
+67.2 days
+----------------------------------------------------------------------
+
+Average change period (hybrid) 0 / 1 :  0.624612224958464
+Average change period (hybrid) 1 / 2 :  0.4429374451462077
+Average change period (hybrid) 2 / 3 :  0.5799056464164913
+
+Densities period  0 : 0.26670581327069875
+Densities period  1 : 0.13123899001761596
+Densities period  2 : 0.11256605989430417
+Densities period  3 : 0.0457428068115091
+
+----------------------------------------------------------------------
+84.0 days
+----------------------------------------------------------------------
+
+Average change period (hybrid) 0 / 1 :  0.5766121732140492
+Average change period (hybrid) 1 / 2 :  0.6597930294937218
+
+Densities period  0 : 0.28896065766294776
+Densities period  1 : 0.16764533176746918
+Densities period  2 : 0.06729301233118028
+
+
+----------------------------------------------------------------------
+----------------------------------------------------------------------
+You have met at least twice after 5PM or twice not at university
+----------------------------------------------------------------------
+----------------------------------------------------------------------
+
+
+----------------------------------------------------------------------
+33.6 days
+----------------------------------------------------------------------
+
+Average change period (hybrid) 0 / 1 :  0.469006048437222
+Average change period (hybrid) 1 / 2 :  0.6067264121212368
+Average change period (hybrid) 2 / 3 :  0.23867921044312104
+Average change period (hybrid) 3 / 4 :  0.39726331546604404
+Average change period (hybrid) 4 / 5 :  0.6018529462301934
+Average change period (hybrid) 5 / 6 :  0.2127193839872881
+Average change period (hybrid) 6 / 7 :  0.22835761898963516
+Average change period (hybrid) 7 / 8 :  0.32657998882301414
+
+Densities period  0 : 0.1081620669406929
+Densities period  1 : 0.09453904873752202
+Densities period  2 : 0.038696418085731064
+Densities period  3 : 0.07334116265413976
+Densities period  4 : 0.06958308866705813
+Densities period  5 : 0.019436288901937757
+Densities period  6 : 0.018907809747504403
+Densities period  7 : 0.01790957134468585
+Densities period  8 : 0.007692307692307693
+
+----------------------------------------------------------------------
+42.0 days
+----------------------------------------------------------------------
+
+Average change period (hybrid) 0 / 1 :  0.5009916065692855
+Average change period (hybrid) 1 / 2 :  0.5208106538643739
+Average change period (hybrid) 2 / 3 :  0.3318623955601847
+Average change period (hybrid) 3 / 4 :  0.6177959138578094
+Average change period (hybrid) 4 / 5 :  0.21528594734187578
+Average change period (hybrid) 5 / 6 :  0.2861141627419131
+
+Densities period  0 : 0.13082795067527891
+Densities period  1 : 0.09718144450968878
+Densities period  2 : 0.06629477392836171
+Densities period  3 : 0.08349970640046976
+Densities period  4 : 0.021374045801526718
+Densities period  5 : 0.02331180270111568
+Densities period  6 : 0.015149735760422783
+
+----------------------------------------------------------------------
+56.0 days
+----------------------------------------------------------------------
+
+Average change period (hybrid) 0 / 1 :  0.6643310105624074
+Average change period (hybrid) 1 / 2 :  0.35024803624680084
+Average change period (hybrid) 2 / 3 :  0.5813402141757891
+Average change period (hybrid) 3 / 4 :  0.3349788904135216
+
+Densities period  0 : 0.18073987081620668
+Densities period  1 : 0.0731650029359953
+Densities period  2 : 0.10005871990604814
+Densities period  3 : 0.035114503816793895
+Densities period  4 : 0.02043452730475631
+
+----------------------------------------------------------------------
+67.2 days
+----------------------------------------------------------------------
+
+Average change period (hybrid) 0 / 1 :  0.6315146560204212
+Average change period (hybrid) 1 / 2 :  0.4547583404096276
+Average change period (hybrid) 2 / 3 :  0.5574870698163213
+
+Densities period  0 : 0.19712272460364064
+Densities period  1 : 0.09712272460364063
+Densities period  2 : 0.08197298884321785
+Densities period  3 : 0.03258954785672343
+
+----------------------------------------------------------------------
+84.0 days
+----------------------------------------------------------------------
+
+Average change period (hybrid) 0 / 1 :  0.5820087628293881
+Average change period (hybrid) 1 / 2 :  0.6456413028134573
+
+Densities period  0 : 0.21503229594832649
+Densities period  1 : 0.125778038755138
+Densities period  2 : 0.04797416324133882
+
+
+----------------------------------------------------------------------
+----------------------------------------------------------------------
+Defintion you have to have met at least thrice after 5PM or in another context than university
+----------------------------------------------------------------------
+----------------------------------------------------------------------
+
+----------------------------------------------------------------------
+33.6 days
+----------------------------------------------------------------------
+
+Average change period (hybrid) 0 / 1 :  0.44460105003060485
+Average change period (hybrid) 1 / 2 :  0.6239651914855789
+Average change period (hybrid) 2 / 3 :  0.24779623645010215
+Average change period (hybrid) 3 / 4 :  0.3624565359689592
+Average change period (hybrid) 4 / 5 :  0.5959430224015606
+Average change period (hybrid) 5 / 6 :  0.20131879352531526
+Average change period (hybrid) 6 / 7 :  0.19189886910475146
+Average change period (hybrid) 7 / 8 :  0.2759188034188034
+
+Densities period  0 : 0.07626714370900417
+Densities period  1 : 0.07978533094812165
+Densities period  2 : 0.029934406678592724
+Densities period  3 : 0.05581395348837209
+Densities period  4 : 0.04895646988670244
+Densities period  5 : 0.014370900417412045
+Densities period  6 : 0.013595706618962432
+Densities period  7 : 0.012045319022063208
+Densities period  8 : 0.006201550387596899
+
+----------------------------------------------------------------------
+42.0 days
+----------------------------------------------------------------------
+
+Average change period (hybrid) 0 / 1 :  0.48656259852436584
+Average change period (hybrid) 1 / 2 :  0.542064405984998
+Average change period (hybrid) 2 / 3 :  0.29761117514422863
+Average change period (hybrid) 3 / 4 :  0.6184271396021442
+Average change period (hybrid) 4 / 5 :  0.19191501363742167
+Average change period (hybrid) 5 / 6 :  0.26003936234705466
+
+Densities period  0 : 0.09439475253428742
+Densities period  1 : 0.0791293977340489
+Densities period  2 : 0.051639833035181874
+Densities period  3 : 0.05980918306499702
+Densities period  4 : 0.0159809183064997
+Densities period  5 : 0.01651759093619559
+Densities period  6 : 0.0110912343470483
+
+----------------------------------------------------------------------
+56.0 days
+----------------------------------------------------------------------
+
+Average change period (hybrid) 0 / 1 :  0.6758544930907325
+Average change period (hybrid) 1 / 2 :  0.3428349155970492
+Average change period (hybrid) 2 / 3 :  0.5755446899497262
+Average change period (hybrid) 3 / 4 :  0.29845854452125353
+
+Densities period  0 : 0.14036970781156827
+Densities period  1 : 0.05462134764460346
+Densities period  2 : 0.07203339296362553
+Densities period  3 : 0.024985092426952894
+Densities period  4 : 0.01490757304710793
+
+----------------------------------------------------------------------
+67.2 days
+----------------------------------------------------------------------
+
+Average change period (hybrid) 0 / 1 :  0.6423223362513194
+Average change period (hybrid) 1 / 2 :  0.44318440537029613
+Average change period (hybrid) 2 / 3 :  0.5568686612169286
+
+Densities period  0 : 0.1558139534883721
+Densities period  1 : 0.07435897435897436
+Densities period  2 : 0.05748360166964818
+Densities period  3 : 0.023613595706618962
+
+----------------------------------------------------------------------
+84.0 days
+----------------------------------------------------------------------
+
+Average change period (hybrid) 0 / 1 :  0.6024023679589606
+Average change period (hybrid) 1 / 2 :  0.6187085769934537
+
+Densities period  0 : 0.170304114490161
+Densities period  1 : 0.0926654740608229
+Densities period  2 : 0.0345855694692904

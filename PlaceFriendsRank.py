@@ -9,26 +9,21 @@ import collections
 import random
 
 
-class PlaceFriendsRank(object):
-    '''
-    
+class PlaceFriendsPageRank(object):
     '''
 
-    def __init__(self, inLinks, outLinks,
-                 numOfIterations=3, maxNodesToKeep=25,
+    '''
+
+    def __init__(self, blues,
+                 maxNodesToKeep=25,
                  directed=False, alpha=0.5):
         '''
         @maxNodesToKeep: How many nodes to keep. If None, returns all
         @directed: If true only consider outgoing links as the original PageRank
         '''
-        self.inLinks = copy.deepcopy(inLinks)  # Followers as a dictionary where
-        # key: node, values: peers
-        self.outLinks = copy.deepcopy(outLinks)  # Followees as a dictionary where
-        # key: node, values: peers
-        self.numOfIterations = numOfIterations
+        self.inLinks = copy.deepcopy(blues)  # Followers as a dictionary where
         self.maxNodesToKeep = maxNodesToKeep
         self.directed = directed
-        self.alpha = alpha
 
     def placeRank(self, user, returnScores=False):
         '''

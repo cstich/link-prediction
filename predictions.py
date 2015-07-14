@@ -1,8 +1,7 @@
 from geogps import Parser
-from geogps.Aux import DefaultOrderedDict
+from geogps.DictAux import DefaultOrderedDict
 from predictLinks import RandomForestLinkPrediction as rf
 
-import collections
 import copy
 import os
 import re
@@ -11,15 +10,12 @@ import sys
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 2:
         print("Usage: %s" % (sys.argv[0]) +
-              "<data directory>"
-              "<path to model>"
-              "<output directory>")
+              "<data directory>")
         sys.exit(-1)
 
     inputData = sys.argv[1]
-    outputPath = sys.argv[2]
     scriptDir = os.path.dirname(os.path.abspath(__file__))
 
     inputData = Parser.parsePath(inputData, scriptDir)
@@ -31,15 +27,16 @@ if __name__ == "__main__":
     ''' Match training to test files '''
     matchFilesPattern = re.compile('_([0-9]+)\.csv')
     trainingFiles = sorted(trainingFiles,
-                           key=lambda x: int(matchFilesPattern.search(x).group(1)))
+                           key=lambda x:
+                           int(matchFilesPattern.search(x).group(1)))
     testingFiles = sorted(trainingFiles,
-                          key=lambda x: int(matchFilesPattern.search(x).group(1)))
+                          key=lambda x:
+                          int(matchFilesPattern.search(x).group(1)))
     files = zip(trainingFiles, testingFiles)
 
     ''' Define the different models '''
-    ''' Basic model '''
-    # To Do: Add features of the social network
 
+    ''' Basic model '''
     baseFeatures = [
         'timeSpent',
         ]
@@ -71,9 +68,13 @@ if __name__ == "__main__":
     placeFeatures = [
         'metAtHome',
         'metAtUniversity',
-        'metAtThirdPlace']
+        'metAtThirdPlace',
+        'metAtOtherPlace',
+        'timeSpentAtHomeWith',
+        'timeSpentAtUniversityWith',
+        'timeSpentAtThirdPlaceWith',
+        'timeSpentAtOtherPlaceWith']
     placeFeatures.extend(copy.copy(baseFeatures))
-
 
     ''' time social place '''
     timeSocialPlaceFeatures = copy.copy(baseFeatures)
@@ -81,14 +82,12 @@ if __name__ == "__main__":
     timeSocialPlaceFeatures.extend(copy.copy(socialFeatures))
     timeSocialPlaceFeatures.extend(copy.copy(timeFeatures))
 
-
     ''' Full model '''
     fullFeatures = copy.copy(baseFeatures)
     fullFeatures.extend(copy.copy(placeFeatures))
     fullFeatures.extend(copy.copy(socialFeatures))
     fullFeatures.extend(copy.copy(networkFeatures))
     fullFeatures.extend(copy.copy(timeFeatures))
-
 
     ''' Run the models and score them '''
     modelScores = DefaultOrderedDict(list)
@@ -108,5 +107,7 @@ if __name__ == "__main__":
         fullModel = rf(train, test, fullFeatures)
         modelScores['full'].append(fullModel.scorePredictions())
 
+    print('Timestep: ', str(inputData).split('/')[-1])
     for key, values in modelScores.items():
         print(key, ': ', statistics.mean(values))
+    print()

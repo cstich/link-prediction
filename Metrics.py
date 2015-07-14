@@ -2,7 +2,6 @@ from geogps import Aux
 from geogps import TimeAux
 from delorean import Delorean
 
-
 import collections
 import copy
 import pytz
@@ -11,26 +10,17 @@ import statistics
 amsterdam = pytz.timezone('Europe/Amsterdam')
 
 
-
-
-def dd_d():
-    return collections.defaultdict(dict)
-
-
-def dd_int():
-    return collections.defaultdict(int)
-
-
 def friendFriends(friendsDict):
     ''' Given a dictionary of friends, returns
     a dicionary of friend friends '''
-    friendsFriends = collections.defaultdict(list)
-    friendsDict = copy.deepcopy(friendsDict)
+    friendsFriends = collections.defaultdict(set)
+    lookupFriendsDict = copy.deepcopy(friendsDict)
+    iterFriendsDict = copy.deepcopy(dict(friendsDict))
 
-    for k, friends in friendsDict.items():
+    for k, friends in iterFriendsDict.items():
         for friend in friends:
-            candidates = [f for f in friendsDict[friend] if f != k]
-            friendsFriends[k].extend(candidates)
+            candidates = [f for f in lookupFriendsDict[friend] if f != k]
+            friendsFriends[k].update(candidates)
     return friendsFriends
 
 
@@ -57,9 +47,8 @@ class UserMetrics(object):
         # features for that time period
         if self.blues is not None:
             '''
-            TO DO HERE:
+            TODO HERE:
                 - add the place entropy of where you have met
-                - add all the social features
             '''
 
             # stopLocs = list(self.stopLocs.values())
@@ -115,7 +104,7 @@ class UserMetrics(object):
             self.metrics['timeSpent'] = timeSpentWithDict
 
             # Count the average amount of people that are present when X and Y
-                # meet
+            # meet
             interactionAtTime = collections.defaultdict(set)
             amountOfOtherPeopleAtInteraction = collections.defaultdict(list)
             for blue in self.blues:
@@ -151,10 +140,8 @@ class UserMetrics(object):
                 candidatesSpatialTriadicClosureDict
 
             ''' Create the place features - context, relative importance '''
-            metAtHome = collections.defaultdict(int)
-            metAtUniversity = collections.defaultdict(int)
-            metAtThirdPlace = collections.defaultdict(int)
             typeDict = collections.defaultdict(list)
+            timeTypeDict = collections.defaultdict(list)
             importanceDict = self.relativePersonalImportance()
             relativeImportance = collections.defaultdict(list)
 
@@ -165,15 +152,22 @@ class UserMetrics(object):
                     peers = blue.keys()
                     for peer, bs in blue.items():
                         ''' Place features '''
-                        # Counts how often a person meets a peer in which
-                        # context
-                        typeDict[str(peer)].append(con)
                         # Create a distribution of the relative importance of
                         # venues where people meet
                         locImportance = importanceDict[slLabel]
                         relativeImportance[str(peer)].append(locImportance)
+                        if con == 'other' or con is None:
+                            if importanceDict[slLabel] >= 0.1:
+                                con = 'thirdPlace'
+                        typeDict[str(peer)].append(con)
+                        for e in bs:
+                            timeTypeDict[str(peer)].append((con, e.time))
 
             ''' Context features '''
+            metAtHome = collections.defaultdict(int)
+            metAtUniversity = collections.defaultdict(int)
+            metAtThirdPlace = collections.defaultdict(int)
+            metAtOtherPlace = collections.defaultdict(int)
             for peer, values in typeDict.items():
                 tempDict = collections.Counter(values)
                 for con, amount in tempDict.items():
@@ -181,14 +175,47 @@ class UserMetrics(object):
                         metAtHome[str(peer)] += amount
                     elif con == 'university':
                         metAtUniversity[str(peer)] += amount
+                    elif con == 'thirdPlace':
+                        metAtThirdPlace[str(peer)] += amount
                     elif con == 'other':
-                        metAtThirdPlace[str(peer)] += amount
+                        metAtOtherPlace[str(peer)] += amount
                     elif con is None:
-                        metAtThirdPlace[str(peer)] += amount
+                        metAtOtherPlace[str(peer)] += amount
+
             self.metrics['metAtHome'] = metAtHome
             self.metrics['metAtUniversity'] = metAtUniversity
             self.metrics['metAtThirdPlace'] = metAtThirdPlace
-            # self.metrics['relativeImportance'] = importanceDict
+            self.metrics['metAtOtherPlace'] = metAtOtherPlace
+
+            ''' Count the time spent at each context with each peer '''
+            timeSpentAtHomeWith = collections.defaultdict(int)
+            timeSpentAtUniversityWith = collections.defaultdict(int)
+            timeSpentAtThirdPlaceWith = collections.defaultdict(int)
+            timeSpentAtOtherPlaceWith = collections.defaultdict(int)
+            contexts = ['home', 'university', 'thirdPlace', 'other', None]
+            for peer, times in timeTypeDict.items():
+                times.sort(key=lambda x: x[1])
+                splitTimes = Aux.isplit(times, contexts)
+                for e in splitTimes:
+                    con, times = zip(*e)
+                    con = con[0]
+                    for v in Aux.difference(times):
+                        if v < 601:
+                            if con == 'home':
+                                timeSpentAtHomeWith[peer] -= v
+                            if con == 'university':
+                                timeSpentAtUniversityWith[peer] -= v
+                            if con == 'thirdPlace':
+                                timeSpentAtThirdPlaceWith[peer] -= v
+                            if con == 'other':
+                                timeSpentAtOtherPlaceWith[peer] -= v
+                            if con is None:
+                                timeSpentAtOtherPlaceWith[peer] -= v
+
+            self.metrics['timeSpentAtHomeWith'] = timeSpentAtHomeWith
+            self.metrics['timeSpentAtUniversityWith'] = timeSpentAtUniversityWith
+            self.metrics['timeSpentAtThirdPlaceWith'] = timeSpentAtThirdPlaceWith
+            self.metrics['timeSpentAtOtherPlaceWith'] = timeSpentAtOtherPlaceWith
 
             ''' Relative importance features '''
             tempDict = collections.defaultdict(float)
@@ -245,9 +272,3 @@ class UserMetrics(object):
         presentFriends = peers & friends
         presentFriendFriends = peers & friendFriends
         return presentFriends & presentFriendFriends
-
-
-class PlaceMetrics(object):
-
-    def placeEntropy():
-        pass

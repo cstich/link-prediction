@@ -4,7 +4,7 @@ from geogps import Parser
 from geogps import TimeAux
 from geogps import EstimateSignificantLocations as esl
 from geogps import Partition
-from geogps.Aux import DefaultOrderedDict
+from geogps.DictAux import dddd_list, DefaultOrderedDict
 from bisect import bisect_left
 from delorean import Delorean
 
@@ -28,13 +28,12 @@ def matchBTToSigLoc(original, ksLower, ksUpper):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 5:
+    if len(sys.argv) != 6:
         print("Usage: %s" % (sys.argv[0]) +
               "<directory of significant locations> "
               "<directory of geographic context>"
               "<directory of bluetooth contacts>"
-              # "<path to call mapping>"
-              # "<path to text mapping>"
+              "<number of intervalls>"
               "<output directory>")
         sys.exit(-1)
 
@@ -44,7 +43,8 @@ if __name__ == "__main__":
     inputLocations = sys.argv[1]
     inputContext = sys.argv[2]
     inputBT = sys.argv[3]
-    outputPath = sys.argv[4]
+    numberOfIntervalls = float(sys.argv[4])
+    outputPath = sys.argv[5]
     scriptDir = os.path.dirname(os.path.abspath(__file__))
 
     inputLocations = Parser.parsePath(inputLocations, scriptDir)
@@ -110,7 +110,8 @@ if __name__ == "__main__":
             index += 1
 
     ''' Add the context and the global label to locations '''
-    newLocations = collections.defaultdict(DefaultOrderedDict)  # A very nested dictionary, should probably be ordered
+    newLocations = collections.defaultdict(DefaultOrderedDict)  # A very nested
+    # dictionary, should probably be ordered
     for user, locations in sigLocs.items():
         for i, (time, ls) in enumerate(locations.items()):
             assert len(ls) == 2
@@ -132,7 +133,7 @@ if __name__ == "__main__":
     ''' Split the stop locations into test and training data '''
     # Also take into account the densities of the localized Bluetooth
     # measurements. See also the plots from lookAtDensities.py
-    timeDelta = int((lastSunday - firstMonday)/8)
+    timeDelta = int((lastSunday - firstMonday)/numberOfIntervalls)
     cutOff = firstMonday + (lastSunday - firstMonday)/4
     timeIntervalls = range(firstMonday, lastSunday, timeDelta)
     timeIntervalls = zip(timeIntervalls[:-1], timeIntervalls[1:])
@@ -140,23 +141,14 @@ if __name__ == "__main__":
 
     for user, locations in newLocations.items():
         partitionedLocations = Partition.splitByTimedelta(locations.items(),
-                                    timeDelta,
-                                    lookupKey=lambda x: x[1][0],
-                                    lowerBound=firstMonday,
-                                    upperBound=lastSunday)
+                                                          timeDelta,
+                                                          lookupKey=lambda x: x[1][0],
+                                                          lowerBound=firstMonday,
+                                                          upperBound=lastSunday)
         for timePeriod, locations in partitionedLocations.items():
             stopLocations[user][timePeriod] = collections.OrderedDict(locations)
 
     ''' Match the bluetooths to sig. locations '''
-    def dd_list():
-        return collections.defaultdict(list)
-
-    def ddd_list():
-        return collections.defaultdict(dd_list)
-
-    def dddd_list():
-        return collections.defaultdict(ddd_list)
-
     BTs = collections.defaultdict(dddd_list)
     blues = collections.defaultdict(list)
     for BTFilename in listOfBTFiles:
@@ -168,9 +160,9 @@ if __name__ == "__main__":
         node.bluetooths.sort(key=lambda x: x.time)
 
         blues[str(node.name)] = Partition.splitByTimedelta(node.bluetooths,
-                                    timeDelta,
-                                    lowerBound=firstMonday,
-                                    upperBound=lastSunday)
+                                                           timeDelta,
+                                                           lowerBound=firstMonday,
+                                                           upperBound=lastSunday)
 
         for timePeriod, locations in stopLocations[str(node.name)].items():
             if locations:
@@ -192,5 +184,6 @@ if __name__ == "__main__":
     results['intervalls'] = timeIntervalls
 
     ''' Feature extraction '''
-    with open(outputPath + '/parsedData.pck', 'wb') as f:
+    with open(outputPath + '/parsedData_time_' +
+              str(timeDelta/3600/24).replace('.', '_') + '.pck', 'wb') as f:
         pickle.dump(results, f)
