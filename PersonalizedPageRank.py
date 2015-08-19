@@ -44,7 +44,7 @@ class PersonalizedPageRank(object):
 
     def __init__(self, inLinks, outLinks, weights=None,
                  numOfIterations=3, maxNodesToKeep=25,
-                 directed=False, alpha=0.5):
+                 directed=False, alpha=0.5, excludeSelf=True):
         '''
         @maxNodesToKeep: How many nodes to keep. If None, returns all
         @directed: If true only consider outgoing links as the original PageRank
@@ -59,6 +59,7 @@ class PersonalizedPageRank(object):
         self.maxNodesToKeep = maxNodesToKeep
         self.directed = directed
         self.alpha = alpha
+        self.exclude = excludeSelf
 
     def pageRank(self, user, returnScores=False, weighted=False):
         '''
@@ -78,6 +79,11 @@ class PersonalizedPageRank(object):
         pageRankProbs = list(pageRankProbs.items())
         # Reshuffle results of the PPR to make sure ties are broken at random
         random.shuffle(pageRankProbs)
+
+        if self.exclude:
+            pageRankProbs = [e for e in pageRankProbs if str(e[0]) != str(user)]
+            # The str cast is probably unnecessary but I am afraid of dynamic
+            # type checking
 
         if returnScores:
             return pageRankProbs

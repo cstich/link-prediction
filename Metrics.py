@@ -171,7 +171,12 @@ class UserMetrics(object):
             for peer, values in typeDict.items():
                 tempDict = collections.Counter(values)
                 for con, amount in tempDict.items():
+                    con = con.replace(' ', '')
                     if con == 'home':
+                        metAtHome[str(peer)] += amount
+                    # for now it doesn't matter whether you meet at your home
+                    # or at somebody else's home
+                    elif con == 'social':
                         metAtHome[str(peer)] += amount
                     elif con == 'university':
                         metAtUniversity[str(peer)] += amount
@@ -181,6 +186,10 @@ class UserMetrics(object):
                         metAtOtherPlace[str(peer)] += amount
                     elif con is None:
                         metAtOtherPlace[str(peer)] += amount
+                    else:
+                        print('Context: \"', con, '\"')
+                        import pdb; pdb.set_trace()  # CONTEXT CHECK BREAKPOINT
+                        raise ValueError()
 
             self.metrics['metAtHome'] = metAtHome
             self.metrics['metAtUniversity'] = metAtUniversity
@@ -199,9 +208,12 @@ class UserMetrics(object):
                 for e in splitTimes:
                     con, times = zip(*e)
                     con = con[0]
+                    con = con.replace(' ', '')
                     for v in Aux.difference(times):
                         if v < 601:
                             if con == 'home':
+                                timeSpentAtHomeWith[peer] -= v
+                            if con == 'social':
                                 timeSpentAtHomeWith[peer] -= v
                             if con == 'university':
                                 timeSpentAtUniversityWith[peer] -= v

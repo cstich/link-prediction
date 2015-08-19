@@ -5,6 +5,7 @@ import collections
 import csv
 import statistics
 
+
 class RandomForestLinkPrediction(object):
     """
     Given a training set of examples and associated features...
@@ -18,7 +19,7 @@ class RandomForestLinkPrediction(object):
     a ranked prediction of which dest nodes each src is likely to follow.
     """
 
-    def __init__(self, trainingFilename, candidatesFilename, model):
+    def __init__(self, trainingFilename, candidatesFilename, model, **kwargs):
         # Use this file to train the classifier.
         # The first column in this file is the truth of a (src, dest) edge
         # (i.e., 1 if the edge is known to exist, 0 otherwise).
@@ -45,18 +46,33 @@ class RandomForestLinkPrediction(object):
             csvReader = csv.DictReader(csvF, delimiter=',')
             for line in csvReader:
                 fields = [line[feature] for feature in model]
-                truth = line['edge']
+                truth = int(line['edge'])
                 training_example_features = fields
 
                 truths.append(truth)
                 training_examples.append(training_example_features)
 
+        ''' Create sample weights '''
+        classes = set(map(int, set(truths)))
+        lengths = dict()
+        for c in classes:
+            lengths[c] = len([e for e in truth if e == c])
+
+        sampleWeights = []
+        for t in truths:
+            for c in classes:
+                if t == c:
+                    sampleWeights.append(lengths[c]/len(truths))
+                    break
+        assert len(training_examples) == len(sampleWeights)
+
         #############################
         # STEP 2: Train a classifier.
         #############################
         clf = RandomForestClassifier(n_estimators=500,
-                                     oob_score=True)
-        clf = clf.fit(training_examples, truths)
+                                     oob_score=True, **kwargs)
+        clf = clf.fit(training_examples, truths,
+                      sample_weight=sampleWeights)
 
         ###############################
         # STEP 3: Score the candidates.
@@ -70,10 +86,11 @@ class RandomForestLinkPrediction(object):
                 fields = [float(line[feature]) for feature in model]
                 src = line['source']
                 dest = line['destination']
+                typ = line['edge']
                 src_dest_nodes.append((src, dest))
 
                 if int(line['edge']):
-                    actuals[src].add(dest)
+                    actuals[src].add((dest, typ))
 
                 example_features = fields
                 examples.append(example_features)
@@ -83,17 +100,23 @@ class RandomForestLinkPrediction(object):
         predictions = collections.defaultdict(set)
         for i, prediction in enumerate(predictedLinks):
             src = src_dest_nodes[i][0]
-            dest = src_dest_nodes[i][1]
+            dest = (src_dest_nodes[i][1], str(prediction))
             if int(prediction):
                 predictions[src].add(dest)
+            else:
+                predictions[src]
 
         ''' Store the stuff '''
-        self.src = src
+        self.actuals = actuals
+        self.classes = classes
         self.dest = dest
         self.features = model
-        self.probailities = clf.predict_proba(examples)
+        self.importances = clf.feature_importances_
         self.predictions = predictions
-        self.actuals = actuals
+        self.probabilities = clf.predict_proba(examples)
+        self.src = src
+        self.TRAINING = TRAINING_SET_WITH_FEATURES_FILENAME
+        self.CANDIDATES = CANDIDATES_TO_SCORE_FILENAME
 
     def printPredictions(self):
         ''' Print predictions '''
@@ -117,10 +140,21 @@ class RandomForestLinkPrediction(object):
                                                             actualLinks))
         return statistics.mean(allPredictions)
 
+    def nullModel(self):
+        # STEP 4: Create a null model
+        oldTies = collections.defaultdict(list)
+        newTies = collections.defaultdict(list)
 
-class RandomForestLinkDissolution(object):
-    '''
-    A class to predict link dissoultion using random forests.
-    TO IMPLEMENT
-    '''
-    pass
+        with open(self.CANDIDATES, 'r') as csvF:
+            csvReader = csv.DictReader(csvF, delimiter=',')
+            for line in csvReader:
+                src = line['source']
+                dest = line['destination']
+                newTyp = line['edge']
+                oldTyp = line['friends']
+                oldTies[src][oldTyp].append(dest)
+                newTies[src][newTyp].append(dest)
+
+        for node in oldTies:
+            for c in self.classes:
+                pass
