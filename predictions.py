@@ -12,19 +12,47 @@ import sys
 
 amsterdam = pytz.timezone('Europe/Amsterdam')
 
+
+def scoreModels(model, dictionaries, key):
+    acc = model.acc
+    prec = model.precision
+    rec = model.recall
+    roc_macro = model.calculateROC()[2]['macro']
+    roc_micro = model.calculateROC()[2]['micro']
+    pr_macro = model.calculatePR()[2]['macro']
+    pr_micro = model.calculatePR()[2]['micro']
+    scores = acc, prec, rec, roc_macro, roc_micro, pr_macro, pr_micro
+    for d, score in zip(dictionaries, scores):
+        d[key].append(score)
+
+def scoreNullModel(dictionaries, NMacc, NMprec, NMrec, NMroc_auc, NMpr_auc):
+    acc = statistics.mean(NMacc)
+    prec = statistics.mean(NMprec)
+    rec = statistics.mean(NMrec)
+    roc_macro = NMroc_auc['macro']
+    roc_micro = NMroc_auc['micro']
+    pr_macro = NMpr_auc['macro']
+    pr_micro = NMpr_auc['micro']
+    scores = acc, prec, rec, roc_macro, roc_micro, pr_macro, pr_micro
+    for d, score in zip(dictionaries, scores):
+        d['null'].append(score)
+
+
 if __name__ == "__main__":
-    if len(sys.argv) != 5:
+    if len(sys.argv) != 6:
         print("Usage: %s " % (sys.argv[0]) +
               "<data directory> "
               "<networks directory> "
               "<number of jobs> "
-              "<output path>")
+              "<output path> "
+              "<weighted>")
         sys.exit(-1)
 
     inputData = sys.argv[1]
     inputNetworks = sys.argv[2]
     n_jobs = int(sys.argv[3])
     outputPath = sys.argv[4]
+    weighted = bool(int(sys.argv[5]))
 
     scriptDir = os.path.dirname(os.path.abspath(__file__))
 
@@ -32,25 +60,23 @@ if __name__ == "__main__":
     trainingPattern = re.compile('train_sample_[0-9]+\.csv')
     trainingFiles = Parser.readFiles(inputData, trainingPattern)
     testPattern = re.compile('test_sample_[0-9]+\.csv')
-    testFiles = Parser.readFiles(inputData, testPattern)
+    testingFiles = Parser.readFiles(inputData, testPattern)
     lengthOfPeriod = float(inputData.split('/')[-3].replace('_', '.'))
     unixTime = int(inputData.split('/')[-1])
     timestep = float((unixTime-1349042400)/24/3600/lengthOfPeriod)
 
-    ''' Create null model '''
+    ''' Null model '''
     networkPatternT0 = re.compile('[0-9]+\-' + str(unixTime) + '\.csv')
     networkPatternT1 = re.compile(str(unixTime) + '\-[0-9]+\.csv')
     networkFileT0 = Parser.readFiles(inputNetworks, networkPatternT0)[0]
     networkFileT1 = Parser.readFiles(inputNetworks, networkPatternT1)[0]
-    nM = NullModel(networkFileT0, networkFileT1, True).run()
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
     ''' Match training to test files '''
     matchFilesPattern = re.compile('_([0-9]+)\.csv')
     trainingFiles = sorted(trainingFiles,
                            key=lambda x:
                            int(matchFilesPattern.search(x).group(1)))
-    testingFiles = sorted(trainingFiles,
+    testingFiles = sorted(testingFiles,
                           key=lambda x:
                           int(matchFilesPattern.search(x).group(1)))
     files = zip(trainingFiles, testingFiles)
@@ -133,43 +159,83 @@ if __name__ == "__main__":
     fullFeatures.extend(copy.copy(timeFeatures)[2:])
 
     ''' Run the models and score them '''
-    modelScores = DefaultOrderedDict(list)
+    accs = DefaultOrderedDict(list)
+    precs = DefaultOrderedDict(list)
+    recs = DefaultOrderedDict(list)
     featureImportance = DefaultOrderedDict(list)
+    roc_macros = DefaultOrderedDict(list)
+    roc_micros = DefaultOrderedDict(list)
+    pr_macros = DefaultOrderedDict(list)
+    pr_micros = DefaultOrderedDict(list)
+    results = list()
+    results.extend([accs, precs, recs, roc_macros, roc_micros,
+                    pr_macros, pr_micros])
+
+    # Calculate a separete set of NullModel for each test set
+    NMaccs = []
+    NMprecs = []
+    NMrecs = []
+    actuals = []
+    NM = NullModel(networkFileT0, networkFileT1, weighted)
+    predictions = NM.createPredictions(1000)
+    probabilities = NM.predictionsToProbability(predictions)
+    _, _, NMroc_auc = NM.roc(probabilities)
+    _, _, NMpr_auc = NM.pr(probabilities)
+
+    for prediction in predictions:
+        NMacc = NM.acc(prediction)
+        NMaccs.append(NMacc)
+        NMprec = NM.prec(prediction)
+        NMprecs.append(NMprec)
+        NMrec = NM.rec(prediction)
+        NMrecs.append(NMrec)
+
     for train, test in files:
         randomModel = rf(train, test, randomFeatures, n_jobs=n_jobs)
-        modelScores['random'].append(randomModel.scorePredictions())
+        scoreModels(randomModel, results, 'random')
         featureImportance['random'].append(randomModel.importances)
+
         pastModel = rf(train, test, pastFeatures, n_jobs=n_jobs)
-        modelScores['past'].append(pastModel.scorePredictions())
+        scoreModels(pastModel, results, 'past')
         featureImportance['past'].append(pastModel.importances)
+
         baseModel = rf(train, test, baseFeatures, n_jobs=n_jobs)
-        modelScores['base'].append(baseModel.scorePredictions())
+        scoreModels(baseModel, results, 'base')
         featureImportance['base'].append(baseModel.importances)
+
         networkOnlyModel = rf(train, test, networkOnlyFeatures, n_jobs=n_jobs)
-        modelScores['networkOnly'].append(networkOnlyModel.scorePredictions())
+        scoreModels(networkOnlyModel, results, 'networkOnly')
         featureImportance['networkOnly'].append(networkOnlyModel.importances)
+
         networkModel = rf(train, test, networkFeatures, n_jobs=n_jobs)
-        modelScores['network'].append(networkModel.scorePredictions())
+        scoreModels(networkModel, results, 'network')
         featureImportance['network'].append(networkModel.importances)
+
         timeModel = rf(train, test, timeFeatures, n_jobs=n_jobs)
-        modelScores['time'].append(timeModel.scorePredictions())
+        scoreModels(timeModel, results, 'time')
         featureImportance['time'].append(timeModel.importances)
-        timeModel = rf(train, test, timeFeatures)
+
         socialModel = rf(train, test, socialFeatures, n_jobs=n_jobs)
-        modelScores['social'].append(socialModel.scorePredictions())
+        scoreModels(socialModel, results, 'social')
         featureImportance['social'].append(socialModel.importances)
+
         placeModel = rf(train, test, placeFeatures, n_jobs=n_jobs)
-        modelScores['place'].append(placeModel.scorePredictions())
+        scoreModels(placeModel, results, 'place')
         featureImportance['place'].append(placeModel.importances)
+
         timeSocialPlaceModel = rf(train, test, timeSocialPlaceFeatures,
                                   n_jobs=n_jobs)
-        modelScores['timeSocialPlace'].append(
-            timeSocialPlaceModel.scorePredictions())
+        scoreModels(timeSocialPlaceModel, results, 'timeSocialPlace')
         featureImportance['timeSocialPlace'].append(
             timeSocialPlaceModel.importances)
+
         fullModel = rf(train, test, fullFeatures, n_jobs=n_jobs)
-        modelScores['full'].append(fullModel.scorePredictions())
+        scoreModels(fullModel, results, 'full')
         featureImportance['full'].append(fullModel.importances)
+
+        # Null model scores
+        scoreNullModel(results, NMaccs, NMprecs, NMrecs, NMroc_auc, NMpr_auc)
+
     averageFeatureImportance = DefaultOrderedDict(list)
     for key, values in featureImportance.items():
         ls = zip(*values)
@@ -180,17 +246,32 @@ if __name__ == "__main__":
     if not os.path.isfile(outputPath + 'modelTimeseriesData.ssv'):
         with open(outputPath + 'modelTimeseriesData.ssv', 'w') as f:
             header = ' '.join(['timepoint', 'model',
-                               'testSet', 'accuracy']) + '\n'
+                               'testSet', 'accuracy',
+                               'precision', 'recall',
+                               'roc_macro', 'roc_micro',
+                               'pr_macro', 'pr_micro']) + '\n'
             f.write(header)
 
     with open(outputPath + 'modelTimeseriesData.ssv', 'a') as f:
         print('Timestep: ', timestep)
-        for key, values in modelScores.items():
-            for testSet, value in zip(testSetNames, values):
+        for key, accs in results[0].items():
+            precs = results[1][key]
+            recs = results[2][key]
+            roc_macros = results[3][key]
+            roc_micros = results[4][key]
+            pr_macros = results[5][key]
+            pr_micros = results[6][key]
+
+            for testSet, acc, prec, rec, roc_mac, roc_mic, pr_mac, pr_mic in zip(
+                    testSetNames, accs, precs, recs, roc_macros, roc_micros,
+                    pr_macros, pr_micros):
                 row = ' '.join([str(timestep), str(key),
-                                str(testSet), str(value)]) + '\n'
+                                str(testSet), str(acc),
+                                str(prec), str(rec),
+                                str(roc_mac), str(roc_mic),
+                                str(pr_mac), str(pr_mic)]) + '\n'
                 f.write(row)
-            print(key, ': ', statistics.mean(values))
+            print(key, ': ', statistics.mean(roc_macros))
         print()
 
     if not os.path.isfile(outputPath + 'featureImportance.ssv'):

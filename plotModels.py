@@ -2,16 +2,16 @@ from geogps import Parser
 
 import collections
 import pandas as pd
-import matplotlib as mpl
-mpl.use('Agg')
+import matplotlib as mp
+mp.use('agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import re
 import scipy
 import statistics
 import sys
-
 import seaborn as sns
+
 
 def unixTimeToTimestep(unixTime, lengthOfPeriod):
     return int(round((unixTime-1349042400)/24/3600/lengthOfPeriod))
@@ -31,12 +31,17 @@ if __name__ == "__main__":
     with open(inputModelData, 'r') as f:
         modelScores = pd.read_csv(f, sep=' ')
 
-    f, ax = plt.subplots(figsize=(14, 7))
-    ax = sns.tsplot(data=modelScores, time="timepoint", condition="model",
-                    unit="testSet", value="accuracy", err_style="ci_band",
-                    ci=95)
-    plt.savefig('modelScores.png', bbox_inches='tight')
-    plt.close()
+    scores = ['accuracy', 'precision', 'recall', 'roc_macro', 'roc_micro',
+              'pr_macro', 'pr_micro']
+    modelsToConsider = ['null', 'full', 'network', 'timeSocialPlace', 'past']
+    subset = modelScores[modelScores['model'].isin(modelsToConsider)]
+    for score in scores:
+        f, ax = plt.subplots(figsize=(14, 7))
+        ax = sns.tsplot(data=subset, time="timepoint", condition="model",
+                        unit="testSet", value=score, err_style="ci_band",
+                        ci=95)
+        plt.savefig('modelScores_' + score + '.png', bbox_inches='tight')
+        plt.close()
 
     ''' Plot feature importance '''
     with open(inputImportanceData, 'r') as f:

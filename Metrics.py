@@ -42,6 +42,76 @@ class UserMetrics(object):
         self.friendFriends = friendFriends
         self.metrics = collections.defaultdict(lambda: None)
 
+    def generateMeetingsDistribution(self, interactionsAtContextAtTime):
+        self.metrics['timeSpentAt'] = self.timeSpentAtLocation()
+        interactionsAtTime = collections.defaultdict(set)
+
+        if self.blues is not None:
+            for blue in self.blues:
+                # Bin all interactions into 10 minute buckets
+                time = int(blue.time / 600) * 600
+                peer = str(blue.peer)
+                interactionsAtTime[time].add(peer)
+
+        # Create a lookup for time and context
+        importanceDict = self.relativePersonalImportance()
+        contextAtTime = collections.defaultdict(list)
+
+        if self.localizedBlues is not None:
+            for i, blue in self.localizedBlues.items():
+                con = list(self.stopLocs.values())[i][1]
+                slLabel = list(self.stopLocs.values())[i][2]
+                for peer, bs in blue.items():
+                    ''' Place features '''
+                    # Create a distribution of the relative importance of
+                    # venues where people meet
+                    if con == 'other' or con is None:
+                        if importanceDict[slLabel] >= 0.1:
+                            con = 'thirdPlace'
+                    if con == 'social':
+                        con = 'home'
+                    for e in bs:
+                        time = int(e.time / 600) * 600
+                        contextAtTime[time].append(con)
+
+        for time, peers in interactionsAtTime.items():
+            hourOfTheWeek = TimeAux.epochToHourOfTheWeek(time, amsterdam)
+
+            if len(contextAtTime[time]) == 0:
+                context = 'other'
+            else:
+                context = maxMode(contextAtTime[time])
+            interactionsAtContextAtTime[context][hourOfTheWeek].append(
+                len(peers))
+            interactionsAtContextAtTime['all'][hourOfTheWeek].append(
+                len(peers))
+
+    def contextTimePattern(self, result):
+        self.metrics['timeSpentAt'] = self.timeSpentAtLocation()
+        contextAtTime = collections.defaultdict(list)
+
+        # Create a lookup for time and context
+        importanceDict = self.relativePersonalImportance()
+        contextAtTime = collections.defaultdict(list)
+
+        if self.stopLocs is not None:
+            for time, sl in self.stopLocs.items():
+                con = sl[1]
+                slLabel = sl[2]
+                if con == 'other' or con is None:
+                    if importanceDict[slLabel] >= 0.1:
+                        con = 'thirdPlace'
+                if con == 'social':
+                    con = 'home'
+                begin, end = time
+                for t in range(begin, end, 600):
+                    t = TimeAux.epochToHourOfTheWeek(t, amsterdam)
+                    contextAtTime[t].append(con)
+
+        for hour, values in contextAtTime.items():
+            for con in values:
+                result[con].append(hour)
+
     def generateFeatures(self):
         # If ther person hasn't met anybody, she obviously can't have any
         # features for that time period
@@ -100,7 +170,7 @@ class UserMetrics(object):
             for peer, times in timeSpentWith.items():
                 for v in Aux.difference(times):
                     if v < 601:
-                        timeSpentWithDict[peer] -= v
+                        timeSpentWithDict[peer] += v
             self.metrics['timeSpent'] = timeSpentWithDict
 
             # Count the average amount of people that are present when X and Y
@@ -109,7 +179,7 @@ class UserMetrics(object):
             amountOfOtherPeopleAtInteraction = collections.defaultdict(list)
             for blue in self.blues:
                 # Bin all interactions into 10 minute buckets
-                # Consider wider buckets of spatial triadic closure isn't
+                # Consider wider buckets if spatial triadic closure isn't
                 # working very well
                 time = int(blue.time / 600) * 600
                 peer = str(blue.peer)
@@ -117,7 +187,8 @@ class UserMetrics(object):
 
             for time, interaction in interactionAtTime.items():
                 for peer in interaction:
-                    amountOfOtherPeopleAtInteraction[peer].append(len(interaction))
+                    amountOfOtherPeopleAtInteraction[peer].append(
+                        len(interaction))
 
             # Average the amount of other people
             averageAmountOfOtherPeople = collections.defaultdict(int)
@@ -188,7 +259,6 @@ class UserMetrics(object):
                         metAtOtherPlace[str(peer)] += amount
                     else:
                         print('Context: \"', con, '\"')
-                        import pdb; pdb.set_trace()  # CONTEXT CHECK BREAKPOINT
                         raise ValueError()
 
             self.metrics['metAtHome'] = metAtHome
@@ -212,17 +282,17 @@ class UserMetrics(object):
                     for v in Aux.difference(times):
                         if v < 601:
                             if con == 'home':
-                                timeSpentAtHomeWith[peer] -= v
+                                timeSpentAtHomeWith[peer] += v
                             if con == 'social':
-                                timeSpentAtHomeWith[peer] -= v
+                                timeSpentAtHomeWith[peer] += v
                             if con == 'university':
-                                timeSpentAtUniversityWith[peer] -= v
+                                timeSpentAtUniversityWith[peer] += v
                             if con == 'thirdPlace':
-                                timeSpentAtThirdPlaceWith[peer] -= v
+                                timeSpentAtThirdPlaceWith[peer] += v
                             if con == 'other':
-                                timeSpentAtOtherPlaceWith[peer] -= v
+                                timeSpentAtOtherPlaceWith[peer] += v
                             if con is None:
-                                timeSpentAtOtherPlaceWith[peer] -= v
+                                timeSpentAtOtherPlaceWith[peer] += v
 
             self.metrics['timeSpentAtHomeWith'] = timeSpentAtHomeWith
             self.metrics['timeSpentAtUniversityWith'] = timeSpentAtUniversityWith
@@ -274,7 +344,6 @@ class UserMetrics(object):
         presentFriendFriends = peers & friendFriends
         # The difference between an empty set and a non-empty set is always
         # the empty set
-        # TO DO: FIGURE OUT IF THAT IS WHAT YOU WANT OR NOT
         return presentFriends - presentFriendFriends
 
     def triadicClosure(self, peers):

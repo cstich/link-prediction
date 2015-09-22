@@ -28,3 +28,31 @@ def calculateAveragePrecision(predictions, actuals):
         return 0
     else:
         return sum(precisions) / len(actuals)
+
+
+def calculatePrecision(predictions, actuals):
+    ''' Calculate how many of your predictions are wrong '''
+    predictions = set(predictions)
+    actuals = set(actuals)
+    correct = predictions.intersection(actuals)
+
+    if len(actuals) == 0 and len(predictions) == 0:
+        return 1
+    elif len(predictions) == 0:
+        return 0
+    else:
+        return (len(correct)/len(predictions))
+
+
+def calculateRecall(predictions, actuals):
+    ''' Calculate how many of your predictions are wrong '''
+    predictions = set(predictions)
+    actuals = set(actuals)
+    correct = predictions.intersection(actuals)
+
+    if len(actuals) == 0 and len(predictions) == 0:
+        return 1
+    elif len(actuals) == 0:
+        return 0
+    else:
+        return (len(correct)/len(actuals))

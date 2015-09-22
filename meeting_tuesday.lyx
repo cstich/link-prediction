@@ -1,0 +1,368 @@
+#LyX 2.1 created this file. For more info see http://www.lyx.org/
+\lyxformat 474
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_math auto
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Section
+Summary
+\end_layout
+
+\begin_layout Enumerate
+I investigated why my model performance was dropping for the later time
+ periods.
+ I found out that the way I select 
+\begin_inset Quotes eld
+\end_inset
+
+viable
+\begin_inset Quotes erd
+\end_inset
+
+ is introducing a quite significant error (and I didn't realize that before
+ but almost all link prediction approaches have this problem).
+ I am now not restricting my search space for new nodes to form ties to
+ as the network is actually small enough.
+\end_layout
+
+\begin_layout Enumerate
+I split all ties into four categories (all for the past month):
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Two people haven't met
+\end_layout
+
+\begin_layout Enumerate
+Two people have met for less than 15 minutes
+\end_layout
+
+\begin_layout Enumerate
+Two people have met for more than 15 minutes but less than an hour
+\end_layout
+
+\begin_layout Enumerate
+Two people have met for longer than an hour
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+1) in conjunction with 2) now leads to quite different results.
+ In short, context DOES NOT matter (in contrast to the literature and my
+ behavioral observation), or at least it doesn't help in predicting who
+ will meet whom (although the model performs quite well in itself now.
+ It is actually really working well now).
+\end_layout
+
+\begin_layout Enumerate
+I found an error in how I calculate the average turnover of ties between
+ time periods.
+ The change in ties is almost 20% per week.
+ I do not think I can call my network a friendship network.
+\end_layout
+
+\begin_layout Enumerate
+I in addition constructed three different types of networks:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Social - Those people have to meet outside of university, and are somewhat
+ comparable to your 
+\begin_inset Quotes eld
+\end_inset
+
+friends.
+\begin_inset Quotes erd
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+University - Those that meet on campus and are your colleagues
+\end_layout
+
+\begin_layout Enumerate
+All - Everybody you meet regardless of where and when
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+I also split the data into more intervals to get more test points.
+ Training and prediction time for an interaction between two nodes stays
+ the same with two months though.
+ I am not exactly sure what the term here is.
+\end_layout
+
+\begin_layout Enumerate
+I added two other baseline scenarios: Random (which is a bit of a misnomer
+ but is basically always guessing the dominant class) and past (which has
+ as its only input whether the class of friendship two nodes had during
+ the previous month.
+\end_layout
+
+\begin_layout Enumerate
+Why it matters? Place in the literature
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Context does not matter for the formation of social interactions (or at
+ least it doesn't add much).
+ Contrast to existing literature on place and friendship formation
+\end_layout
+
+\begin_layout Enumerate
+I haven't seen anybody doing a prediction of social interactions using a
+ link prediction framework (this is a tentative point though for the moment.
+ I want to go back and make sure).
+\end_layout
+
+\begin_layout Enumerate
+and last but not least I haven't seen anybody taking space, time, and social
+ 
+\begin_inset Quotes eld
+\end_inset
+
+context
+\begin_inset Quotes erd
+\end_inset
+
+ into account simultaneously.
+\end_layout
+
+\end_deeper
+\begin_layout Section
+Model scores
+\end_layout
+
+\begin_layout Subsection
+Social
+\end_layout
+
+\begin_layout Standard
+\begin_inset Graphics
+	filename /home/christoph/raman/home/christoph/linkPrediction/results/weighted_social/modelScores.png
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+University
+\end_layout
+
+\begin_layout Standard
+\begin_inset Graphics
+	filename /home/christoph/raman/home/christoph/linkPrediction/results/weighted_university/modelScores.png
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+All
+\end_layout
+
+\begin_layout Standard
+\begin_inset Graphics
+	filename /home/christoph/raman/home/christoph/linkPrediction/results/weighted_all/modelScores.png
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+As you can see in basically all models the added information you gain by
+ knowing where and when two people have met is almost negligible.
+ This is in contrast to the current literature that suggests it should play
+ an important role (and I thought so too).
+\end_layout
+
+\begin_layout Subsection
+Comparison of model scores
+\end_layout
+
+\begin_layout Standard
+\begin_inset Graphics
+	filename /home/christoph/raman/home/christoph/linkPrediction/results/comparison_weighted/compareModels.png
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The first drop in performance for all models is Christmas, the second big
+ drop in accuracy is the exam period at the end of the year (and the weeks
+ preceding it to be exact.
+\end_layout
+
+\begin_layout Subsection
+How much does our prediction increase when we add context information?
+\end_layout
+
+\begin_layout Standard
+\begin_inset Graphics
+	filename /home/christoph/raman/home/christoph/linkPrediction/results/comparison_weighted/compareAddedInformation.png
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+As already pointed out, information about when, whom, and where you have
+ met, does not add much information
+\end_layout
+
+\begin_layout Subsection
+Relative performance of the 
+\begin_inset Quotes eld
+\end_inset
+
+context
+\begin_inset Quotes erd
+\end_inset
+
+-only model compared to the full model
+\end_layout
+
+\begin_layout Standard
+\begin_inset Graphics
+	filename /home/christoph/raman/home/christoph/linkPrediction/results/comparison_weighted/contextPerformance.png
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+However, the 
+\begin_inset Quotes eld
+\end_inset
+
+context
+\begin_inset Quotes erd
+\end_inset
+
+ only model still compares relatively well to the best prediction we can
+ get using all available information.
+\end_layout
+
+\begin_layout Subsection
+How does the 
+\begin_inset Quotes eld
+\end_inset
+
+context
+\begin_inset Quotes erd
+\end_inset
+
+ model perform relative to the baseline?
+\end_layout
+
+\begin_layout Standard
+\begin_inset Graphics
+	filename /home/christoph/raman/home/christoph/linkPrediction/results/comparison_weighted/compareContextAdvantage.png
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+One potential step forward for why context might be useful is if you want
+ to predict future ties, but do not have access to or simply do not know
+ the whole network.
+ In this particular scenario context allows you to improve your prediction
+ significantly (technically there is still the variable 
+\begin_inset Quotes eld
+\end_inset
+
+spatial triadic closure
+\begin_inset Quotes erd
+\end_inset
+
+ in this model, but I doubt that the results would change much, but this
+ is on my to-do list).
+\end_layout
+
+\end_body
+\end_document

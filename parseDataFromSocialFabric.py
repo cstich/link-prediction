@@ -33,7 +33,7 @@ if __name__ == "__main__":
               "<directory of significant locations> "
               "<directory of geographic context> "
               "<directory of bluetooth contacts> "
-              "<timedelta of the friendship period in days> "
+              "<timedelta of the friendship period in seconds> "
               "<number of intervalls in a friendship period> "
               "<output directory>")
         sys.exit(-1)
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     inputLocations = sys.argv[1]
     inputContext = sys.argv[2]
     inputBT = sys.argv[3]
-    timeDelta = int(sys.argv[4]) * 24 * 3600
+    timeDelta = int(sys.argv[4])
     numberOfIntervalls = int(sys.argv[5])
     outputPath = sys.argv[6]
     scriptDir = os.path.dirname(os.path.abspath(__file__))
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     users = Parser.inferUsers(inputLocations, pattern)
 
     ''' Read the geo contexts from the saved pickles '''
-    pattern = re.compile('geographic_context_sig_loc_user_([0-9]+)\.json')
+    pattern = re.compile('geographic_context_sig_loc_user_([0-9]+)\.pck')
     context = Parser.loadPickles(inputContext, pattern)
 
     ''' Read in the bluetooth filepaths '''
@@ -154,7 +154,6 @@ if __name__ == "__main__":
     stopLocations = collections.defaultdict(collections.OrderedDict)
     while slidingTimeDelta < timeDelta:
         for user, locations in newLocations.items():
-            lowerBound
             partitionedLocations =\
                 Partition.splitByTimedelta(locations.items(),
                                            timeDelta,

@@ -96,8 +96,11 @@ def estimateTieChangeOverTime(network, timeIntervalls):
             lastFriends = currentFriends
             currentFriends = network[user][key]
             diff = calculateDifference(lastFriends, currentFriends)
-            differences[user].append(diff)
-    return differences
+            differences[key].append(diff)
+    meanDifferences = collections.OrderedDict()
+    for key, diffs in differences.items():
+        meanDifferences[key] = statistics.mean(diffs)
+    return meanDifferences
 
 
 def exportNetworks(network, timeIntervalls, outputPath):
@@ -151,7 +154,7 @@ def findUniversityMeetings(meetings):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 10:
+    if len(sys.argv) != 11:
         print("Usage: %s " % (sys.argv[0]) +
               "<data path> "
               "<min. number of meetings> "
@@ -161,7 +164,8 @@ if __name__ == "__main__":
               "<output directory for 'all' friends> "
               "<output directory for 'weighted social' friends> "
               "<output directory for 'weighted university' friends> "
-              "<output directory for 'weighted all' friends>")
+              "<output directory for 'weighted all' friends> "
+              "<whether to export or to just get statistics>")
         sys.exit(-1)
 
     inputData = sys.argv[1]
@@ -173,6 +177,7 @@ if __name__ == "__main__":
     outputPathWeighted = sys.argv[7]
     outputPathWeightedUniversity = sys.argv[8]
     outputPathWeightedAll = sys.argv[9]
+    export = bool(int(sys.argv[10]))
     scriptDir = os.path.dirname(os.path.abspath(__file__))
 
     inputData = Parser.parsePath(inputData, scriptDir)
@@ -202,12 +207,10 @@ if __name__ == "__main__":
                     for peer, meetings in observation.items():
                         meetings = sorted(meetings, key=lambda x: x.time)
                         meetingsForUniversity = findUniversityMeetings(meetings)
-                        meetings = Aux.difference([m.time for m in meetings])
-                        meetings = list(map(lambda x: x*-1, meetings))
-                        meetingsForUniversity = Aux.difference(
-                            [m.time for m in meetingsForUniversity])
-                        meetingsForUniversity = list(
-                            map(lambda x: x*-1, meetingsForUniversity))
+                        meetings = list(Aux.difference(
+                            [m.time for m in meetings]))
+                        meetingsForUniversity = list(Aux.difference(
+                            [m.time for m in meetingsForUniversity]))
 
                         if meetings:
                             meetings = Aux.filterList(
@@ -221,13 +224,15 @@ if __name__ == "__main__":
 
                         if meetingsForUniversity:
                             meetingsForUniversity = Aux.filterList(
-                                meetingsForUniversity, lambda x: x > 0 and x <= 305)
+                                meetingsForUniversity,
+                                lambda x: x > 0 and x <= 305)
                         meetingsForUniversity = sum(meetingsForUniversity)
                         if con == 'university' or con == 'University':
                             outgoingWeightedUniversityFriends[str(user)][timePeriod][peer]\
                                 += meetings
                             if meetingsForUniversity > minimumTime:
-                                outgoingUniversityFriends[str(user)][timePeriod].append(peer)
+                                outgoingUniversityFriends[str(user)][timePeriod]\
+                                    .append(peer)
 
     ''' Process context friends '''
     outgoingFriends = filterFriends(outgoingFriends, minNumberOfMeetings)
@@ -271,8 +276,8 @@ if __name__ == "__main__":
         for timePeriod, observations in values.items():
             for peer, meetings in observations.items():
                 meetings = sorted(meetings, key=lambda x: x.time)
-                meetings = list(map(lambda x: x*-1,
-                                Aux.difference([m.time for m in meetings])))
+                meetings = list(
+                    Aux.difference([m.time for m in meetings]))
                 if len(meetings) > 0:
                     meetings = Aux.filterList(
                         meetings, lambda x: x > 0 and x <= 305)
@@ -286,8 +291,8 @@ if __name__ == "__main__":
         for timePeriod, observations in values.items():
             for peer, meetings in observations.items():
                 meetings = sorted(meetings, key=lambda x: x.time)
-                meetings = list(map(lambda x: x*-1,
-                                Aux.difference([m.time for m in meetings])))
+                meetings = list(
+                    Aux.difference([m.time for m in meetings]))
                 if len(meetings) > 0:
                     meetings = Aux.filterList(
                         meetings, lambda x: x > 0 and x <= 305)
@@ -321,7 +326,7 @@ if __name__ == "__main__":
 
     ''' Build hybrid network - both time and context '''
     hybridFriends = combineNetworks(friends, timeFriends)
-    hybridWeightedFriends = combineWeightedNetworks(
+    weightedHybridFriends = combineWeightedNetworks(
         weightedFriends, weightedTimeFriends)
 
     ''' Caldulate densities for the time slices '''
@@ -332,40 +337,46 @@ if __name__ == "__main__":
     densitiesHybrid = networkDensitiesOverTime(hybridFriends, timeIntervalls)
     densitiesAll = networkDensitiesOverTime(allFriends, timeIntervalls)
 
+    weightedDensities = networkDensitiesOverTime(weightedFriends,
+                                                 timeIntervalls)
+    weightedDensitiesUniversity = networkDensitiesOverTime(
+        weightedUniversityFriends, timeIntervalls)
+    weightedDensitiesTime = networkDensitiesOverTime(weightedTimeFriends,
+                                                     timeIntervalls)
+    weightedDensitiesHybrid = networkDensitiesOverTime(weightedHybridFriends,
+                                                       timeIntervalls)
+    weightedDensitiesAll = networkDensitiesOverTime(weightedAllFriends,
+                                                    timeIntervalls)
+
     ''' Estimate change between time slices '''
     differences = estimateTieChangeOverTime(friends, timeIntervalls)
     print()
-    countDifferences = zip(*differences.values())
-    for i, d in enumerate(countDifferences):
+    for i, d in enumerate(differences):
         print('Average change period (non-university)', i, '/', i+1,
-              ': ', statistics.mean(d))
+              ': ', d)
 
     differencesUniversity = estimateTieChangeOverTime(universityFriends,
                                                       timeIntervalls)
     print()
-    countDifferencesUniversity = zip(*differencesUniversity.values())
-    for i, d in enumerate(countDifferencesUniversity):
+    for i, d in enumerate(differencesUniversity):
         print('Average change period (university)', i, '/', i+1,
               ': ', statistics.mean(d))
 
     differencesTime = estimateTieChangeOverTime(timeFriends, timeIntervalls)
     print()
-    countDifferencesTime = zip(*differencesTime.values())
-    for i, d in enumerate(countDifferencesTime):
+    for i, d in enumerate(differencesTime):
         print('Average change period (time)', i, '/', i+1,
               ': ', statistics.mean(d))
 
     differencesHybrid = estimateTieChangeOverTime(hybridFriends, timeIntervalls)
     print()
-    countDifferencesHybrid = zip(*differencesHybrid.values())
-    for i, d in enumerate(countDifferencesHybrid):
+    for i, d in enumerate(differencesHybrid):
         print('Average change period (social)', i, '/', i+1,
               ': ', statistics.mean(d))
 
     differencesAll = estimateTieChangeOverTime(allFriends, timeIntervalls)
     print()
-    countDifferencesAll = zip(*differencesAll.values())
-    for i, d in enumerate(countDifferencesAll):
+    for i, d in enumerate(differencesAll):
         print('Average change period (all)', i, '/', i+1,
               ': ', statistics.mean(d))
 
@@ -376,13 +387,26 @@ if __name__ == "__main__":
         print('Densities period ', i, ': Non-Uni: ', d, ' Uni: ', u, ' Time: ',
               t, ' Soc: ', s, ' All: ', a)
 
-    exportNetworks(hybridFriends, timeIntervalls, outputPathSocial)
-    exportNetworks(universityFriends, timeIntervalls, outputPathUniversity)
-    exportNetworks(allFriends, timeIntervalls, outputPathAll)
+    if export:
+        exportNetworks(hybridFriends, timeIntervalls, outputPathSocial)
+        exportNetworks(universityFriends, timeIntervalls, outputPathUniversity)
+        exportNetworks(allFriends, timeIntervalls, outputPathAll)
 
-    exportWeightedNetworks(
-        hybridWeightedFriends, timeIntervalls, outputPathWeighted)
-    exportWeightedNetworks(
-        weightedUniversityFriends, timeIntervalls, outputPathWeightedUniversity)
-    exportWeightedNetworks(
-        weightedAllFriends, timeIntervalls, outputPathWeightedAll)
+        exportWeightedNetworks(
+            weightedHybridFriends, timeIntervalls, outputPathWeighted)
+        exportWeightedNetworks(
+            weightedUniversityFriends, timeIntervalls,
+            outputPathWeightedUniversity)
+        exportWeightedNetworks(
+            weightedAllFriends, timeIntervalls, outputPathWeightedAll)
+    else:
+        duration = float(inputData.split('/')[-2].replace('_', '.'))
+        lines = []
+
+        for i, (den, dif) in enumerate(zip(densitiesAll, differencesAll.values())):
+            line = ' '.join(map(str, [i, duration, den, dif, '\n']))
+            lines.append(line)
+
+        with open('networkStatistics.ssv', 'a+') as f:
+            for line in lines:
+                f.write(line)

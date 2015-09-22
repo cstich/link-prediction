@@ -1,0 +1,733 @@
+#LyX 2.1 created this file. For more info see http://www.lyx.org/
+\lyxformat 474
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_math auto
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+\graphics default
+\default_output_format default
+\output_sync 1
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Space, Time, and Sociability: Predicting Future Interactions
+\end_layout
+
+\begin_layout Author
+Christoph Stich
+\end_layout
+
+\begin_layout Section
+Introduction (1000 words)
+\end_layout
+
+\begin_layout Standard
+Researchers have long studied the relationship between between space, time,
+ and social structure as space, time and the social realm are intrinsically
+ linked.
+ For the most part people do not aimlessly amble, nor is happenstance usually
+ the reason people spend time at places.
+ People commute to work every day, they meet their friends at a bar after
+ work, or they go on a date with their partner.
+\end_layout
+
+\begin_layout Standard
+With the increased dissemination of GPS, mobile technologies, and social
+ networks new avenues for research have opened up in recent years.
+ [write some more].
+\end_layout
+
+\begin_layout Standard
+A number of important question however remain unstudied.
+ For example, can we use chronological and spatial information to predict
+ future interactions.
+ So far work that has taken geographic features into account has focused
+ on social structure and not interactions (quotes), whereas predicting interacti
+ons (Yang 2013) has not incorporated geographic information.
+ 
+\end_layout
+
+\begin_layout Standard
+While the importance of time and space for social processes has been acknowledge
+d by various authors () it is unclear whether place in itself has genuine
+ predictive power or is simply confounded with the geographic embeddedness
+ of social interactions.
+ In other words does place matter or is it actually the people you happen
+ to meet at different places.
+ [Is it easier to predict different types of interactions? Colleagues, friends,
+ vs I don't care]
+\end_layout
+
+\begin_layout Standard
+To address those questions, we propose to phrase the question of whether
+ two people will meet in a given time period as a link prediction problem
+ and assess the predictive power of time, place, and social variable have
+ for the model.
+\end_layout
+
+\begin_layout Section
+Related Work
+\end_layout
+
+\begin_layout Standard
+[Link-prediction work]
+\end_layout
+
+\begin_layout Standard
+[Write paragraph(s) about space and social].
+\end_layout
+
+\begin_layout Standard
+[Write a paragraph(s) about time and social.
+ Regular patterns of visits].
+\end_layout
+
+\begin_layout Section
+Problem Definition and Dataset
+\end_layout
+
+\begin_layout Subsection
+Social interaction graph
+\end_layout
+
+\begin_layout Standard
+We phrase the problem of predicting interaction as a link prediction problem
+ in a time-varying, labeled network G that represents interactions.
+ We define interaction as a bluetooth measurement of -80 as Vedran () has
+ shown this to be a reliable cut-off value for close and unobstructed physical
+ proximity.
+ For each time-point t we build a graph 
+\begin_inset Formula $G_{t}=(V_{t},\,E_{t})$
+\end_inset
+
+, where 
+\emph on
+V
+\begin_inset script subscript
+
+\begin_layout Plain Layout
+t
+\end_layout
+
+\end_inset
+
+
+\emph default
+ are the set of students at time 
+\emph on
+t
+\emph default
+ and 
+\emph on
+E
+\begin_inset script subscript
+
+\begin_layout Plain Layout
+t 
+\end_layout
+
+\end_inset
+
+
+\emph default
+the set of links between them.
+ We use the previous 30 days of observations to assign each edge 
+\begin_inset Formula $e\,\text{∈}\,E$
+\end_inset
+
+ a label
+\emph on
+ 
+\begin_inset Formula $L(e)\text{∈}\left\{ 1,2,3\right\} $
+\end_inset
+
+ .
+
+\emph default
+ The labels 
+\begin_inset Formula $L(e)$
+\end_inset
+
+ are based on the amount of interaction in the preceding time period, where
+ 
+\begin_inset Formula $L(e)$
+\end_inset
+
+ is defined as: 
+\begin_inset Formula $\begin{cases}
+0: & m=0\\
+1: & 0<m<15\\
+2: & 15<m<60\\
+3: & 60<m
+\end{cases}$
+\end_inset
+
+ and 
+\emph on
+m
+\emph default
+ is the observed time of interaction between any two 
+\begin_inset Formula $v\,\text{∈}\,V$
+\end_inset
+
+ in minutes.
+ These particular labels were chosen to be able to distinguish between 
+\emph on
+chance encounters
+\emph default
+ (
+\begin_inset Formula $l=1$
+\end_inset
+
+), 
+\emph on
+weak ties
+\emph default
+ (
+\begin_inset Formula $l=2$
+\end_inset
+
+), and 
+\emph on
+strong ties
+\emph default
+ (
+\begin_inset Formula $l=3$
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Subsection
+Link-prediction
+\end_layout
+
+\begin_layout Standard
+In a human interaction network 
+\begin_inset Formula $G_{t}=(V_{t},\,E_{t})$
+\end_inset
+
+, the multi-class link prediction task is to predict 
+\begin_inset Formula $L(e)$
+\end_inset
+
+ at time 
+\begin_inset Formula $t+\triangle t$
+\end_inset
+
+, where 
+\begin_inset Formula $e(u,\,v)\not\in E_{t}$
+\end_inset
+
+ and 
+\begin_inset Formula $u,\,v\,\text{∈}\,V_{t}$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+Intuitively, we are trying to predict who will meet whom and for who long
+ in the next 30 days.
+ Formulating the problem this way includes link dissolution.
+\end_layout
+
+\begin_layout Subsection
+Datasets
+\end_layout
+
+\begin_layout Standard
+Our data consists of two datasets.
+ [Write something about the datasets][Descriptive plots of the behavioral
+ dynamics]
+\end_layout
+
+\begin_layout Standard
+[Data exploration]
+\end_layout
+
+\begin_layout Section
+Social Interaction Graph
+\end_layout
+
+\begin_layout Standard
+We first have to If we look at the data we can see that people as discussed
+ above do indeed behave and socialize differently based on time and place.
+\end_layout
+
+\begin_layout Standard
+[plot when people meet, average amount of people that you meet VS hour of
+ the week]
+\end_layout
+
+\begin_layout Standard
+We tested several DT for the length of our 
+\begin_inset Quotes eld
+\end_inset
+
+tie building
+\begin_inset Quotes erd
+\end_inset
+
+ period.
+ Yang et al (2013) have proposed to use the average edge-life 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="7" columns="3">
+<features rotate="0" tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+mean network density
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+mean change between time-points
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.0134781523272
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.319738138853
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+7
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.0572148893257
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.488997486829
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+14
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.0861212239838
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.320756869695
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+30
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.128019671169
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.192480667714
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+60
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.173636393293
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.107235978827
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+90
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.203007560188
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.0857949392835
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+[Plot network density over time and with various definitions of network
+ construction, 1 day, 7 days, 14 days, 1 month, 2 months]
+\end_layout
+
+\begin_layout Standard
+[Autocorrelation]
+\end_layout
+
+\begin_layout Standard
+[Edge life]
+\end_layout
+
+\begin_layout Standard
+[Entropy of different cut-off values for link duration]
+\end_layout
+
+\begin_layout Standard
+Unsurprisingly we can see that people visit the university, their home,
+ and other venues differently.
+ People mainly visit the university in the morning and afternoon, while
+ the most likely time to encounter somebody at home is at 5PM.
+\end_layout
+
+\begin_layout Standard
+[How do they socialize in different places.
+ Plot a university network, a home network, and a other network]
+\end_layout
+
+\begin_layout Standard
+People also form different 
+\begin_inset Quotes eld
+\end_inset
+
+networks
+\begin_inset Quotes erd
+\end_inset
+
+ in different places/socialize differently.
+\end_layout
+
+\begin_layout Section
+Label Prediction
+\end_layout
+
+\begin_layout Standard
+We use a Random Forest to learn [Description of the random forest]
+\end_layout
+
+\begin_layout Standard
+[Description of the different variables]
+\end_layout
+
+\begin_layout Standard
+[Description of the different models]
+\end_layout
+
+\begin_layout Subsection
+Training Set Construction
+\end_layout
+
+\begin_layout Standard
+[search space]
+\end_layout
+
+\begin_layout Standard
+Usually researchers have restricted their search space for new ties as there
+ are almost N potential candidates in sparse social networks.
+ The complexity of any algorithm that searches in an unrestricted space
+ is thus O(N^2).
+ Common ways to deal with this are either considering only the set of friends
+ of friends, 
+\begin_inset Quotes eld
+\end_inset
+
+place-friends
+\begin_inset Quotes erd
+\end_inset
+
+ (), 
+\begin_inset Quotes eld
+\end_inset
+
+mobility
+\begin_inset Quotes erd
+\end_inset
+
+ friends () as potential candidates for new ties.
+ However, our network is small enough that is still computationally feasible
+ to consider all possible pairs of nodes.
+ Furthermore, there is a lot of change in the structure of the graph happening
+ between time points (get average figure for this) and restricting the search
+ space would exclude several potential candidates at each time step.
+ 
+\end_layout
+
+\begin_layout Subsection
+Null Model
+\end_layout
+
+\begin_layout Standard
+[null model] As a benchmark to test our predictions against we also developed
+ a null model for a time-evolving weighted interaction graph with dissolving
+ ties.
+ The null model asserts that change between time-points in G is happening
+ randomly, while it adheres to the true amount of change of the graph between
+ time-points.
+ 
+\begin_inset Quotes eld
+\end_inset
+
+True change
+\begin_inset Quotes erd
+\end_inset
+
+ in our case means created ties (
+\begin_inset Formula $E_{t+1}\backslash E_{t}$
+\end_inset
+
+) as well as dissolved ties (
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $E_{t+1}\backslash E_{t}$
+\end_inset
+
+
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+) for each class.
+ Where we take the probability that a tie changes classes between time-points
+ - P (xt+1 | yt0) where x, y E {0,1,2,3} - from the observation of the actual
+ change between Gt and Gt+1.
+\end_layout
+
+\begin_layout Standard
+We use the first one to refine our hypothesis and to develop our model,
+ while we use the second dataset to test our model.
+ In this way we avoid [self-biasing] our analysis.
+\end_layout
+
+\begin_layout Section
+Findings
+\end_layout
+
+\begin_layout Subsection
+[Findings of the general model]
+\end_layout
+
+\begin_layout Subsection
+[Multi-class vs single-class case]
+\end_layout
+
+\begin_layout Subsection
+[Findings for the different 'classes']
+\end_layout
+
+\begin_layout Section
+Conclusion/Discussion
+\end_layout
+
+\end_body
+\end_document

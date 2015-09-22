@@ -1,9 +1,58 @@
-from Scorer import calculateAveragePrecision
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import average_precision_score, roc_curve, auc, accuracy_score,\
+    precision_score, recall_score, precision_recall_curve
 
 import collections
 import csv
-import statistics
+import numpy as np
+
+def createTruthArray(actuals, classes):
+    ar = np.zeros([len(actuals), len(classes)])
+    for i, a in enumerate(actuals):
+        for j, c in enumerate(classes):
+            if c == a:
+                ar[i, j] = 1
+    return ar
+
+
+def roc(truths, probabilities, classes):
+        # Compute ROC curve and ROC area for each class
+        fpr = dict()
+        tpr = dict()
+        roc_auc = dict()
+        for c in classes:
+            fpr[c], tpr[c], _ = roc_curve(truths[:, c],
+                                          probabilities[:, c])
+            roc_auc[c] = auc(fpr[c], tpr[c])
+
+        roc_auc['macro'] = sum(roc_auc.values())/len(classes)
+        # Compute micro-average ROC curve and ROC area
+        fpr["micro"], tpr["micro"], _ = roc_curve(truths.ravel(),
+                                                  probabilities.ravel())
+        roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
+        return fpr, tpr, roc_auc
+
+
+def pr(truths, probabilities, classes):
+    # Compute Precision-Recall and plot curve
+    precision = dict()
+    recall = dict()
+    pr_auc = dict()
+    for c in classes:
+        precision[c], recall[c], _ = precision_recall_curve(
+            truths[:, c], probabilities[:, c])
+        pr_auc[c] = average_precision_score(
+            truths[:, c], probabilities[:, c])
+
+    pr_auc['macro'] = sum(pr_auc.values())/len(classes)
+    # Compute micro-average precision-recall curve
+    # AUC under the PR curve
+    precision["micro"], recall["micro"], _ = precision_recall_curve(
+        truths.ravel(), probabilities.ravel())
+    pr_auc["micro"] = average_precision_score(
+        truths, probabilities, average="micro")
+
+    return precision, recall, pr_auc
 
 
 class RandomForestLinkPrediction(object):
@@ -56,13 +105,13 @@ class RandomForestLinkPrediction(object):
         classes = set(map(int, set(truths)))
         lengths = dict()
         for c in classes:
-            lengths[c] = len([e for e in truth if e == c])
+            lengths[c] = len([e for e in truths if e == c])
 
         sampleWeights = []
         for t in truths:
             for c in classes:
                 if t == c:
-                    sampleWeights.append(lengths[c]/len(truths))
+                    sampleWeights.append(1/lengths[c])
                     break
         assert len(training_examples) == len(sampleWeights)
 
@@ -79,7 +128,8 @@ class RandomForestLinkPrediction(object):
         ###############################
         src_dest_nodes = []
         examples = []
-        actuals = collections.defaultdict(set)
+        actualLinks = collections.defaultdict(set)
+        actuals = list()
         with open(CANDIDATES_TO_SCORE_FILENAME, 'r') as csvF:
             csvReader = csv.DictReader(csvF, delimiter=',')
             for line in csvReader:
@@ -90,71 +140,46 @@ class RandomForestLinkPrediction(object):
                 src_dest_nodes.append((src, dest))
 
                 if int(line['edge']):
-                    actuals[src].add((dest, typ))
+                    actualLinks[src].add((dest, typ))
+                actuals.append(int(line['edge']))
 
                 example_features = fields
                 examples.append(example_features)
 
         ''' Create a dictionary of predicted links '''
-        predictedLinks = clf.predict(examples)
-        predictions = collections.defaultdict(set)
-        for i, prediction in enumerate(predictedLinks):
+        predictions = clf.predict(examples)
+        predictedLinks = collections.defaultdict(set)
+        for i, prediction in enumerate(predictions):
             src = src_dest_nodes[i][0]
             dest = (src_dest_nodes[i][1], str(prediction))
             if int(prediction):
-                predictions[src].add(dest)
+                predictedLinks[src].add(dest)
             else:
-                predictions[src]
+                predictedLinks[src]
 
         ''' Store the stuff '''
+        self.actualLinks = actualLinks
         self.actuals = actuals
+        self.truths = createTruthArray(actuals, classes)
         self.classes = classes
         self.dest = dest
         self.features = model
         self.importances = clf.feature_importances_
         self.predictions = predictions
-        self.probabilities = clf.predict_proba(examples)
+        self.predictedLinks = predictedLinks
+        self.probabilities = np.asarray(clf.predict_proba(examples))
         self.src = src
+        self.acc = accuracy_score(actuals, predictions)
+        self.precision = precision_score(actuals, predictions,
+                                         average='weighted')
+        self.recall = recall_score(actuals, predictions,
+                                   average='weighted')
         self.TRAINING = TRAINING_SET_WITH_FEATURES_FILENAME
         self.CANDIDATES = CANDIDATES_TO_SCORE_FILENAME
 
-    def printPredictions(self):
-        ''' Print predictions '''
-        for i in range(len(self.predictions)):
-            print(",".join([str(int(x)) for x in [self.src_dest_nodes[i][0],
-                                                  self.src_dest_nodes[i][1],
-                                                  self.predictions[i]]]))
 
-    def printProbailities(self):
-        ''' Print predictions '''
-        for i in range(len(self.predictions)):
-            print(",".join([str(int(x)) for x in [self.src_dest_nodes[i][0],
-                                                  self.src_dest_nodes[i][1],
-                                                  self.predictions[i]]]))
+    def calculatePR(self):
+        return pr(self.truths, self.probabilities, self.classes)
 
-    def scorePredictions(self):
-        allPredictions = []
-        for src, predictedLinks in self.predictions.items():
-            actualLinks = self.actuals[src]
-            allPredictions.append(calculateAveragePrecision(predictedLinks,
-                                                            actualLinks))
-        return statistics.mean(allPredictions)
-
-    def nullModel(self):
-        # STEP 4: Create a null model
-        oldTies = collections.defaultdict(list)
-        newTies = collections.defaultdict(list)
-
-        with open(self.CANDIDATES, 'r') as csvF:
-            csvReader = csv.DictReader(csvF, delimiter=',')
-            for line in csvReader:
-                src = line['source']
-                dest = line['destination']
-                newTyp = line['edge']
-                oldTyp = line['friends']
-                oldTies[src][oldTyp].append(dest)
-                newTies[src][newTyp].append(dest)
-
-        for node in oldTies:
-            for c in self.classes:
-                pass
+    def calculateROC(self):
+        return roc(self.truths, self.probabilities, self.classes)
