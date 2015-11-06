@@ -1,0 +1,408 @@
+%% LyX 2.1.3 created this file.  For more info, see http://www.lyx.org/.
+%% Do not edit unless you really know what you are doing.
+\documentclass[english]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{subscript}
+\usepackage{babel}
+\begin{document}
+
+\title{Space, Time, and Sociability: Predicting Future Interactions}
+
+
+\author{Christoph Stich}
+
+\maketitle
+
+\section{Introduction (1000 words)}
+
+Researchers have long studied the relationship between between space,
+time, and social structure as space, time and the social realm are
+intrinsically linked. For the most part people do not aimlessly amble,
+nor is happenstance usually the reason people spend time at places.
+People commute to work every day, they meet their friends at a bar
+after work, or they go on a date with their partner.
+
+With the increased dissemination of GPS, mobile technologies, and
+social networks new avenues for research have opened up in recent
+years. {[}write some more{]}.
+
+A number of important question however remain unstudied. For example,
+can we use chronological and spatial information to predict future
+interactions. So far work that has taken geographic features into
+account has focused on social structure and not interactions (quotes),
+whereas predicting interactions (Yang 2013) has not incorporated geographic
+information. 
+
+While the importance of time and space for social processes has been
+acknowledged by various authors () it is unclear whether place in
+itself has genuine predictive power or is simply confounded with the
+geographic embeddedness of social interactions. In other words does
+place matter or is it actually the people you happen to meet at different
+places. 
+
+Another open question is whether the type of relationship between
+nodes has any influence on the predictability of interactions. One
+could assume that meetings between colleagues are highly predictable
+as they both share a specific physical location---work---that both
+visit with high regularity. On the other hand one could assume that
+meeting your social ties is driven by a much more complex process
+and thus appear to be less regular.
+
+To address those questions, we propose to phrase the question of whether
+two people will meet in a given time period as a link prediction problem
+in a social interaction graph and assess the predictive power of time,
+place, and social variable have for different scenarios. The rest
+of the paper is organized as follows: We discuss related work in section
+\ref{sec:Related-Work} and formally define our problem in section
+\ref{sec:Problem-Definition}. Section \ref{sec:Social-Interaction-Graph}
+describes the two datasets we use in our paper as well as explores
+the social interaction graph. Section \ref{sec:Prediction} details
+the setup for our prediction task, whereas section \ref{sec:Findings}
+discusses our findings. Last but not least we discuss the implications
+of our findings in section \ref{sec:Conclusion}.
+
+
+\section{\label{sec:Related-Work}Related Work}
+
+Predicting links in a graph is a well studied problem in computation
+(see the review paper).
+
+{[}Write paragraph(s) about space and social{]}.
+
+{[}Write a paragraph(s) about time and social. Regular patterns of
+visits{]}.
+
+
+\section{\label{sec:Problem-Definition}Problem Definition}
+
+
+\subsection{Social interaction graph}
+
+We phrase the problem of predicting interaction as a link prediction
+problem in a time-varying, labeled network G that represents interactions.
+We define interaction any physical proximity measured by a strong
+bluetooth measurement. We use of -80 as Vedran () has shown this to
+be a reliable cut-off value for close and unobstructed physical proximity
+{[}expand a bit{]}. For each timepoint t we build a graph $G_{t}=(V_{t},\,E_{t},)$,
+where \emph{V\textsubscript{t}} are the set of students at time \emph{t}
+and \emph{E\textsubscript{t }}the set of links between them. Each
+edge $e\in E$ has also an associated weight \emph{$w(e)\text{\ensuremath{\in}}\mathbb{Z}$}
+representing the amount of interaction between any two nodes $u,v\in V$
+in the previous period $\triangle T$. Let $W_{t}$ be the distribution
+of assigned weights at a given timepoint t and \emph{W }be the distribution
+of all weights over all possible timepoints. We also assign a label\emph{
+$L(w(e))\text{\ensuremath{\in}}\left\{ 0,1,2,3\right\} $} to each
+$e\in E_{t}$ to be able to use state-of-art algorithms in link-prediction
+that use class labels as domain. The labels $L(e)$ are based on the
+amount of interaction in the preceding time period and the cut-off
+values for each label are defined in relation to the quartils of \emph{W}.
+Let\emph{ L(e) }now be $\begin{cases}
+0: & m=0\\
+1: & 0<m<Q_{1}(W)\\
+2: & Q_{1}(W)<m<Q_{3}(W)\\
+3: & Q_{3}(W)<m
+\end{cases}$ and \emph{m} the observed time of interaction between any two $u,v\in V$
+during $\triangle T$. These particular labels were chosen to be able
+to distinguish between \emph{weak ties} ($l=1$), \emph{ties} ($l=2$),
+and \emph{strong ties} ($l=3$).
+
+
+\subsection{Link-prediction}
+
+In a human interaction network $G_{t}=(V_{t},\,E_{t})$, the multi-class
+link prediction task is to predict $L(e)$ at time $t+\triangle t$,
+where $e(u,\,v)\not\in E_{t}$ and $u,\,v\,\text{\ensuremath{\in}}\,V_{t}$. 
+
+Intuitively, we are trying to predict who will meet whom and for who
+long during period $\triangle t$. Formulating the problem this way
+has the advantage of including link dissolution---a not well studied
+problem in link-prediction (quote survey)---quite naturally in the
+problem definition. This is equivalent to predicting the labeled,
+network structure of $G_{t+\triangle t}$.
+
+
+\section{\label{sec:Social-Interaction-Graph}The week, geographic context,
+and social interactions}
+
+
+\subsection{Datasets}
+
+Our data consists of two datasets. {[}Write something about the datasets{]}{[}Descriptive
+plots of the behavioral dynamics{]}
+
+{[}Data exploration{]}
+
+
+\subsection{Descriptive parts}
+
+Because the literature reliably suggests a link between geography,
+time, and the social realm, we investigate our data to check whether
+we can observe a relationship between those factors. If there is a
+relationship between space, time, and social interactions we should
+be able to observe differences in how people visit those places and
+in how they socialize at different geographic settings. 
+
+
+\subsubsection{Geographic contexts}
+
+Based on Oldenburg's seminal paper () we develop a definition of different
+geographic contexts for our study, whose influence on link-prediction
+we are interested in. {[}write a short paragraph about oldenburg{]}
+Analogous to Oldenburg we distinguish between several different geographic
+settings a student can be in: the \emph{home, }the\emph{ university,
+}a \emph{third place}, and \emph{other.} We infer the home location
+for each student by clustering all his or her location measurements
+between 11PM and 4AM using DBSCAN () into the set of clusters \emph{C.}
+We then select $max(|c|),c\in C$ as a student's home location. For
+assigning students to the \emph{university }context we mapped the
+campus of their university and checked whether students where within
+50 meters of the campus. To infer the \emph{third places }for each
+student we first construct the set of all the stop locations a student
+would visit $L_{stop}$. For each $l\in L_{stop}$ we can also observe
+the amount of time \emph{t(l)} a student spends there. We then define
+a \emph{third place }as any $l\in L_{stop}$that fulfills the following
+inequality: $t(l)/\sum t(l_{i})\geq0.1$ and is not either \emph{home
+}or \emph{university}. A \emph{third place }is thus any location where
+a student spends at least 10\% of his time that is neither \emph{home
+}nor \emph{university. }Lastly any other $l\in L_{stop}$ is classified
+as \emph{other.} 
+
+
+\subsubsection{Activity pattern and social interactions}
+
+Looking at the aggregated weekly activity pattern of all students
+one can {[}say something about the figure{]}. First, we observe that
+during weekdays the two clearly dominating settings are \emph{home
+}or \emph{university }and the pattern is remarkably similar for all
+weekdays. Second, during weekends the dominant setting is \emph{third
+Places }while almost no one visits the \emph{university.} Also people
+explore a lot of \emph{other }locations during the weekend as well.
+Thus, the behavior of students is consequentially different on weekdays
+than from weekends. Thus, it seems to safe to conclude that there
+is indeed a relationship between geographic setting and time as the
+observed behavior is too regular to be product of chance.
+
+\begin{figure}
+\protect\caption{Weekly aggregated activity pattern\label{fig:Activity-pattern}}
+\includegraphics[width=1\textwidth,bb = 0 0 200 100, draft, type=eps]{/home/christoph/raman/home/christoph/linkPrediction/results/actitivityPattern.png}
+\end{figure}
+
+
+\begin{figure}
+\protect\caption{$\overline{x}_{peers}$}
+
+
+\includegraphics[width=1\textwidth,bb = 0 0 200 100, draft, type=eps]{/home/christoph/raman/home/christoph/linkPrediction/results/meetingsDistribution.png}
+\end{figure}
+When looking at when people meet as in figure \ref{fig:average-peers}
+one can clearly distinguish between weekdays and weekends and between
+days and nights. However, when looking at the different geographic
+contexts the picture is less clear. Figure \ref{fig:deviation-average-peers}
+shows the absolute deviation from the average amount of peers present
+for each geographic setting. 
+
+\begin{figure}
+\protect\caption{\label{fig:deviation-average-peers}Deviation from $\overline{x}_{peers}$}
+\includegraphics[width=1\textwidth,bb = 0 0 200 100, draft, type=eps]{/home/christoph/raman/home/christoph/linkPrediction/results/meetingsDistributionAllContexts.png}
+\end{figure}
+
+
+While one can spot differences their interpretation is less straight
+forward and one cannot determine whether the differences are due to
+chance. Lag plots are often used to determine whether a series is
+random or not (find a quote). An analysis of the lags in figure X
+reveals that the variations are not random as there are clearly linear
+patterns visible for all geographic contexts
+
+\begin{figure}
+\protect\caption{\label{fig:Lag-plots-deviations}Lag plots deviations of $\overline{x}_{peers}$}
+
+
+\includegraphics[width=1\textwidth,bb = 0 0 200 100, draft, type=eps]{/home/christoph/raman/home/christoph/linkPrediction/results/lag_peers.png}
+\end{figure}
+
+
+\begin{figure}
+\protect\caption{$\overline{x}_{edge\,Life}$}
+\includegraphics[width=1\textwidth,bb = 0 0 200 100, draft, type=eps]{/home/christoph/raman/home/christoph/linkPrediction/results/edge_life_contexts.png}
+\end{figure}
+
+
+If one looks at the the average edge life of each interaction between
+students for the different settings one can see that students interact
+for longer at home, at a third place, and at an other place then at
+university. At the university students interact for roughly 90 minutes,
+whereas the interactions at the other settings are significantly longer.
+Also the length of interactions is dependent on the time of the day.
+To offer a blunt interpretation: People don't interact when they are
+sleeping.
+
+We thus conclude that are differences in how, when, for how long,
+and whom people meet and interact with in our data. Furthermore, the
+activities and interaction of the students are not random but follow
+identifiable patterns. Students socialize more at home and at places
+that are important to them, they do not visit the university during
+the weekend, and are more likely to be out during the weekend than
+at home. Taken at it's face value those findings are rather unexciting,
+but we will use those differences for predicting who will meet whom
+in the next section. 
+
+
+\section{\label{sec:Prediction}Link prediction}
+
+Random Forests have been consistently shown to perform well in link-prediction
+tasks (for example X and Y) and we thus opt to use them for our prediction
+task as well. We are particularly interested in the drivers of social
+interaction or in other words what set of features gives us the best
+prediction and to a lesser extent in evaluating different classifiers
+for the prediction task at hand.
+
+
+\subsection{Choosing DT and Dt}
+
+As Yang et al () have shown setting the length of DT and Dt has an
+impact on the performance of the resulting link prediction. Yang et
+al () have proposed to use the time series of the density of the network
+as a guide for selecting DT and we mostly follow their approach here.
+When looking at the density time series (figure density time series)
+one can clearly identify a weekly pattern, but also seasonal effects.
+Periods of low density either coincide with holidays or with exam
+periods and thus ideally we chose a DT of 14 days to mitigate the
+negative effects of seasonality. 
+
+Contrary to Yang et al () we did not opt to use the average duration
+of an interaction as Dt. While the average length of interaction is
+around 806 seconds, we chose to instead use several hours as Dt. As
+this allows us to predict whether there will be an edge between u,v
+e V, but also to distinguish between the strength of the tie over
+the course of a longer time intervall. This is important as we are
+much more interested in the drivers of interaction than in correctly
+predicting chance encounters. A shorter Dt would not allow us to predict
+the length and thus the nature of the interaction. Furthermore, compare
+the entropy of different length of encounters in table X. We can see
+that longer encounters are have a consequentially lower entropy value
+than shorter ones, the ones we are most interested in. Encounters
+of an undefined length make up around 0.49 of all encounters, i.e.
+encounters that appear in only sampling interval of the smartphone
+and we thus cannot assign a meaningful duration.
+
+
+\subsection{Search space}
+
+Usually researchers have restricted their search space for new ties
+as there are almost N potential candidates in sparse social networks.
+The complexity of any algorithm that searches in an unrestricted space
+is thus O(N\textasciicircum{}2). Common ways to deal with this are
+either considering only the set of friends of friends, ``place-friends''
+(), ``mobility'' friends () as potential candidates for new ties.
+However, our network is small enough that is still computationally
+feasible to consider all possible pairs of nodes. Furthermore, we
+can observe a lot of change in the structure of the graph between
+time points (figure X) and restricting the search space would exclude
+several potential candidates at each time step. 
+
+
+\subsection{Feature vectors}
+
+
+\subsubsection{Baseline features}
+
+As our baseline features for all subsequent models we include \emph{recency},
+the amount of elapsed time since the last meeting, \emph{activeness,
+}how often two nodes interacted (Quotes from the Yang paper) and how
+much time spent two nodes spent together during the training period.
+
+
+\subsubsection{Context features}
+
+We also include several features pertaining to the setting wherein
+two nodes meet. These can be split into features relating to time,
+space, and the social realm. The time related features pertain to
+capture weekly behavioral patterns. Let M be the set of all meetings
+between two nodes in the training period. We then include a vector(hour-of-day(M)),
+vector((hour-of-week(M)), vector((day-of-week(M)).
+
+We also include min(\emph{place entropy)} (quote) {[}should this be
+a vector?{]} of the meetings as we reason that there is a difference
+in whether two people meet at a place a lot of people visit and thus
+with high place entropy or at quieter place with low place entropy.
+Or in other words, if two student meet at the university then this
+probably does not tell us that much as a lot of people are meeting
+there, but if two people meet at their respective homes then this
+is a much more unlikely event.
+
+We also include the \emph{max(relative importance)} of a place measured
+as the amount of time a student spends there {[}define. Train wreck
+sentence{]}. 
+
+{[}And we do something here and I have to say something about this...
+time spent at context\_i with peer{]}
+
+But it is not only the physical qualities of the place that might
+{[}do something{]} but the also the social setting an interaction
+occurs. If two students meet at the university during a course this
+does not tell us much, but if two students meet alone on the campus
+there is a higher likelihood that they are socializing. We thus include
+the number of other people present min, avg, max(number of people).
+
+{[}I have to re-think this one too:{]} spatial triadic closure
+
+candidates spatial triadic closure
+
+
+\subsubsection{Network features}
+
+
+\subsection{Null Model}
+
+{[}null model{]} As a benchmark to test our predictions against we
+also developed a null model for a time-evolving weighted interaction
+graph with dissolving ties. The null model asserts that change between
+time-points in G is happening randomly, while it adheres to the true
+amount of change of the graph between time-points. ``True change''
+in our case means created ties ($E_{t+\triangle t}\backslash E_{t}$)
+as well as dissolved ties ($E_{t+\triangle t}\backslash E_{t}$) for
+each class. Where we take the probability that a tie changes classes
+between time-points - $P(x_{t+\triangle t}|y_{t})$ where x, y E \{0,1,2,3\}
+- from the observation of the actual change between $G_{t}$ and $G_{t+\triangle t}$.
+
+We use the first one to refine our hypothesis and to develop our model,
+while we use the second dataset to test our model. In this way we
+avoid {[}self-biasing{]} our analysis.
+
+
+\subsection{Experimental Setup}
+
+We developed and tested it our model on our smaller dataset before
+running the ``completed'' model on our second, larger and independent
+dataset. This way we avoid biasing ourselves and developing our model
+to fit our data. We in this way ensure that 
+
+
+\section{\label{sec:Findings}Findings}
+
+
+\subsection{{[}Findings of the general model{]}}
+
+
+\subsection{{[}Multi-class vs single-class case{]}}
+
+
+\subsection{{[}Findings for the different models{]}}
+
+
+\subsection{{[}Performance of the node-only model{]}}
+
+
+\subsection{{[}Performance of several different T lengths{]}}
+
+
+\subsection{{[}network prediction performance{]}}
+
+
+\section{\label{sec:Conclusion}Conclusion/Discussion}
+\end{document}

@@ -77,7 +77,17 @@ Christoph Stich
 \end_layout
 
 \begin_layout Section
-Introduction (1000 words)
+Introduction
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+I have to say somewhere that this is a global link prediction algorithm
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -93,7 +103,111 @@ Researchers have long studied the relationship between between space, time,
 \begin_layout Standard
 With the increased dissemination of GPS, mobile technologies, and social
  networks new avenues for research have opened up in recent years.
- [write some more].
+ For example, Backstrom et al (
+\begin_inset CommandInset citation
+LatexCommand citeyear
+key "Backstrom2010"
+
+\end_inset
+
+) have found that the probability of friendship with a person decreases
+ with distance.
+ Scellato et al.
+ (
+\begin_inset CommandInset citation
+LatexCommand citeyear
+key "Scellato2011"
+
+\end_inset
+
+) have studied the properties of location-based social networks and found
+ that about 40% of all links in location-based social networks are shorter
+ than 100km.
+ Others (
+\begin_inset CommandInset citation
+LatexCommand citealt
+key "Noulas2015"
+
+\end_inset
+
+ and 
+\begin_inset CommandInset citation
+LatexCommand citealt
+key "Scellato2011a"
+
+\end_inset
+
+) used the social and spatial properties of location-based social networks
+ to propose a link-prediction model.
+ While Brown et al.
+ (
+\begin_inset CommandInset citation
+LatexCommand citeyear
+key "Brown2013"
+
+\end_inset
+
+) developed a model for the evolution of city-wide location-based social
+ networks, it remains unclear whether the qualities of a place itself fosters
+ tie formation, or the fact that friends tend to meet at specific---more
+ 
+\begin_inset Quotes eld
+\end_inset
+
+social
+\begin_inset Quotes erd
+\end_inset
+
+---places.
+\end_layout
+
+\begin_layout Standard
+Furthermore, Backstrom et al.
+ (
+\begin_inset CommandInset citation
+LatexCommand citeyear
+key "Backstrom2010"
+
+\end_inset
+
+) utilize the relationship between various geographic features and friendship
+ the location of an individual from a sparse set of known user locations
+ using the relationship between geography and friendship.
+ Wang et al.
+ (
+\begin_inset CommandInset citation
+LatexCommand citeyear
+key "Wang2015"
+
+\end_inset
+
+) discover that the more similar two individuals are in their mobility the
+ closer they are in the social network.
+ 
+\end_layout
+
+\begin_layout Standard
+Last but not least, De Domenico et al (
+\begin_inset CommandInset citation
+LatexCommand citeyear
+key "DeDomenico2013"
+
+\end_inset
+
+) have used the mobility data of friends to consequentially improve user
+ movement prediction, while Cho et al.
+ (
+\begin_inset CommandInset citation
+LatexCommand citeyear
+key "Cho2011"
+
+\end_inset
+
+) have built a mobility model incorporating both periodic movement of individual
+s as well as travel due to the social network structure.
+ The exact interplay of the social structure and the human mobility patterns
+ remains however unclear.
+ 
 \end_layout
 
 \begin_layout Standard
@@ -101,48 +215,89 @@ A number of important question however remain unstudied.
  For example, can we use chronological and spatial information to predict
  future interactions.
  So far work that has taken geographic features into account has focused
- on social structure and not interactions (quotes), whereas predicting interacti
-ons (Yang 2013) has not incorporated geographic information.
+ on relative static social structure and not interactions (quotes), whereas
+ predicting interactions (Yang 2013) has not incorporated geographic information.
  
 \end_layout
 
 \begin_layout Standard
 While the importance of time and space for social processes has been acknowledge
-d by various authors () it is unclear whether place in itself has genuine
- predictive power or is simply confounded with the geographic embeddedness
- of social interactions.
- In other words does place matter or is it actually the people you happen
- to meet at different places.
- [Is it easier to predict different types of interactions? Colleagues, friends,
- vs I don't care]
+d by [the above cited people] () it is unclear whether place in itself has
+ genuine predictive power or is simply confounded with the geographic embeddedne
+ss of social interactions.
+ The unaddressed question is whether place actually matters or is it actually
+ the people you happen to meet at different places.
+\end_layout
+
+\begin_layout Standard
+Another open question is whether the type of relationship between nodes
+ has any influence on the predictability of interactions.
+ One could assume that meetings between colleagues are highly predictable
+ as they both share a specific physical location---work---that both visit
+ with high regularity.
+ On the other hand one could assume that meeting your social ties is driven
+ by a much more complex process and thus appear to be less regular.
 \end_layout
 
 \begin_layout Standard
 To address those questions, we propose to phrase the question of whether
- two people will meet in a given time period as a link prediction problem
- and assess the predictive power of time, place, and social variable have
- for the model.
+ two people will meet in a given time period as a link-prediction problem
+ in a social interaction graph.
+ We create a global link-prediction algorithm to assess the predictive power
+ of time, place, and various social features have for different modeling
+ scenarios.
+ The rest of the paper is organized as follows: We formally define our problem
+ in section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Problem-Definition"
+
+\end_inset
+
+.
+ Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Social-Interaction-Graph"
+
+\end_inset
+
+ describes the two datasets we use in our paper as well as explores our
+ data in regards to the interaction between spatial and social variables.
+ Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Prediction"
+
+\end_inset
+
+ details the setup for our prediction task, whereas section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Findings"
+
+\end_inset
+
+ discusses our findings.
+ Last but not least we discuss the implications of our findings in section
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Conclusion"
+
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Section
-Related Work
-\end_layout
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Problem-Definition"
 
-\begin_layout Standard
-[Link-prediction work]
-\end_layout
+\end_inset
 
-\begin_layout Standard
-[Write paragraph(s) about space and social].
-\end_layout
-
-\begin_layout Standard
-[Write a paragraph(s) about time and social.
- Regular patterns of visits].
-\end_layout
-
-\begin_layout Section
-Problem Definition and Dataset
+Problem Definition
 \end_layout
 
 \begin_layout Subsection
@@ -152,10 +307,15 @@ Social interaction graph
 \begin_layout Standard
 We phrase the problem of predicting interaction as a link prediction problem
  in a time-varying, labeled network G that represents interactions.
- We define interaction as a bluetooth measurement of -80 as Vedran () has
- shown this to be a reliable cut-off value for close and unobstructed physical
- proximity.
- For each time-point t we build a graph 
+ We define interaction any physical proximity measured by a strong bluetooth
+ measurement.
+ We use -80 [some unit] as Vedran () has shown this to be a reliable cut-off
+ value for close and unobstructed physical proximity [expand a bit].
+ For each timepoint 
+\emph on
+t
+\emph default
+ we build a graph 
 \begin_inset Formula $G_{t}=(V_{t},\,E_{t})$
 \end_inset
 
@@ -190,34 +350,70 @@ t
 
 \emph default
 the set of links between them.
- We use the previous 30 days of observations to assign each edge 
-\begin_inset Formula $e\,\text{∈}\,E$
+ Each edge 
+\begin_inset Formula $e∈E$
 \end_inset
 
- a label
+ has also an associated weight 
 \emph on
- 
-\begin_inset Formula $L(e)\text{∈}\left\{ 1,2,3\right\} $
+
+\begin_inset Formula $w(e)\text{∈}\mathbb{Z}$
 \end_inset
 
- .
 
 \emph default
+ representing the amount of interaction between any two nodes 
+\begin_inset Formula $u,v∈V$
+\end_inset
+
+ in the previous period 
+\begin_inset Formula $\triangle T$
+\end_inset
+
+.
+ Let 
+\begin_inset Formula $W_{t}$
+\end_inset
+
+ be the distribution of assigned weights at a given timepoint t and 
+\emph on
+W 
+\emph default
+be the distribution of all weights over all possible timepoints.
+ We assign a label
+\emph on
+ 
+\begin_inset Formula $L(w(e))\text{∈}\left\{ 0,1,2,3\right\} $
+\end_inset
+
+
+\emph default
+ to each 
+\begin_inset Formula $e∈E_{t}$
+\end_inset
+
+.
  The labels 
 \begin_inset Formula $L(e)$
 \end_inset
 
- are based on the amount of interaction in the preceding time period, where
- 
-\begin_inset Formula $L(e)$
-\end_inset
-
- is defined as: 
+ are based on the amount of interaction in the preceding time period and
+ the cut-off values for each label are defined in relation to the quartils
+ of 
+\emph on
+W
+\emph default
+.
+ Let
+\emph on
+ L(e) 
+\emph default
+now be 
 \begin_inset Formula $\begin{cases}
 0: & m=0\\
-1: & 0<m<15\\
-2: & 15<m<60\\
-3: & 60<m
+1: & 0<m<Q_{1}(W)\\
+2: & Q_{1}(W)<m<Q_{3}(W)\\
+3: & Q_{3}(W)<m
 \end{cases}$
 \end_inset
 
@@ -225,14 +421,18 @@ the set of links between them.
 \emph on
 m
 \emph default
- is the observed time of interaction between any two 
-\begin_inset Formula $v\,\text{∈}\,V$
+ the observed time of interaction between any two 
+\begin_inset Formula $u,v∈V$
 \end_inset
 
- in minutes.
+ during 
+\begin_inset Formula $\triangle T$
+\end_inset
+
+.
  These particular labels were chosen to be able to distinguish between 
 \emph on
-chance encounters
+weak ties
 \emph default
  (
 \begin_inset Formula $l=1$
@@ -240,7 +440,7 @@ chance encounters
 
 ), 
 \emph on
-weak ties
+ties
 \emph default
  (
 \begin_inset Formula $l=2$
@@ -255,6 +455,7 @@ strong ties
 \end_inset
 
 ).
+ [I have to write something here about this]
 \end_layout
 
 \begin_layout Subsection
@@ -288,8 +489,29 @@ In a human interaction network
 
 \begin_layout Standard
 Intuitively, we are trying to predict who will meet whom and for who long
- in the next 30 days.
- Formulating the problem this way includes link dissolution.
+ during period 
+\begin_inset Formula $\triangle t$
+\end_inset
+
+.
+ Formulating the problem this way has the advantage of including link dissolutio
+n---a not well studied problem in link-prediction (quote survey)---quite
+ naturally in the problem definition.
+ This is equivalent to predicting the labeled, network structure of 
+\begin_inset Formula $G_{t+\triangle t}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Social-Interaction-Graph"
+
+\end_inset
+
+[Exploring the data]
 \end_layout
 
 \begin_layout Subsection
@@ -298,321 +520,536 @@ Datasets
 
 \begin_layout Standard
 Our data consists of two datasets.
- [Write something about the datasets][Descriptive plots of the behavioral
- dynamics]
-\end_layout
-
-\begin_layout Standard
-[Data exploration]
-\end_layout
-
-\begin_layout Section
-Social Interaction Graph
-\end_layout
-
-\begin_layout Standard
-We first have to If we look at the data we can see that people as discussed
- above do indeed behave and socialize differently based on time and place.
-\end_layout
-
-\begin_layout Standard
-[plot when people meet, average amount of people that you meet VS hour of
- the week]
-\end_layout
-
-\begin_layout Standard
-We tested several DT for the length of our 
-\begin_inset Quotes eld
-\end_inset
-
-tie building
-\begin_inset Quotes erd
-\end_inset
-
- period.
- Yang et al (2013) have proposed to use the average edge-life 
-\end_layout
-
-\begin_layout Standard
-\begin_inset Tabular
-<lyxtabular version="3" rows="7" columns="3">
-<features rotate="0" tabularvalignment="middle">
-<column alignment="center" valignment="top">
-<column alignment="center" valignment="top">
-<column alignment="center" valignment="top">
-<row>
-<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-mean network density
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-mean change between time-points
-\end_layout
-
-\end_inset
-</cell>
-</row>
-<row>
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-1
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-0.0134781523272
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-0.319738138853
-\end_layout
-
-\end_inset
-</cell>
-</row>
-<row>
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-7
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-0.0572148893257
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-0.488997486829
-\end_layout
-
-\end_inset
-</cell>
-</row>
-<row>
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-14
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-0.0861212239838
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-0.320756869695
-\end_layout
-
-\end_inset
-</cell>
-</row>
-<row>
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-30
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-0.128019671169
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-0.192480667714
-\end_layout
-
-\end_inset
-</cell>
-</row>
-<row>
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-60
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-0.173636393293
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-0.107235978827
-\end_layout
-
-\end_inset
-</cell>
-</row>
-<row>
-<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-90
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-0.203007560188
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-0.0857949392835
-\end_layout
-
-\end_inset
-</cell>
-</row>
-</lyxtabular>
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-[Plot network density over time and with various definitions of network
- construction, 1 day, 7 days, 14 days, 1 month, 2 months]
-\end_layout
-
-\begin_layout Standard
-[Autocorrelation]
-\end_layout
-
-\begin_layout Standard
-[Edge life]
-\end_layout
-
-\begin_layout Standard
-[Entropy of different cut-off values for link duration]
-\end_layout
-
-\begin_layout Standard
-Unsurprisingly we can see that people visit the university, their home,
- and other venues differently.
- People mainly visit the university in the morning and afternoon, while
- the most likely time to encounter somebody at home is at 5PM.
-\end_layout
-
-\begin_layout Standard
-[How do they socialize in different places.
- Plot a university network, a home network, and a other network]
-\end_layout
-
-\begin_layout Standard
-People also form different 
-\begin_inset Quotes eld
-\end_inset
-
-networks
-\begin_inset Quotes erd
-\end_inset
-
- in different places/socialize differently.
-\end_layout
-
-\begin_layout Section
-Label Prediction
-\end_layout
-
-\begin_layout Standard
-We use a Random Forest to learn [Description of the random forest]
-\end_layout
-
-\begin_layout Standard
-[Description of the different variables]
-\end_layout
-
-\begin_layout Standard
-[Description of the different models]
+ [Write something about the datasets and how they were collected]
 \end_layout
 
 \begin_layout Subsection
-Training Set Construction
+Descriptive parts
 \end_layout
 
 \begin_layout Standard
-[search space]
+Because the literature reliably suggests a link between geography, time,
+ and the social realm, we first investigate our data to check whether we
+ can observe a relationship between those factors.
+ If there is a relationship between space, time, and social interactions
+ we should be able to observe differences in how people visit those places
+ and in how they socialize at different geographic settings.
+ 
+\end_layout
+
+\begin_layout Subsubsection
+Geographic contexts
+\end_layout
+
+\begin_layout Standard
+Based on Oldenburg's seminal paper () we develop a definition of different
+ geographic contexts for our study, whose influence on link-prediction we
+ are interested in.
+ [write a short paragraph about oldenburg] Analogous to Oldenburg we distinguish
+ between several different geographic settings a student can be in: the
+ 
+\emph on
+home, 
+\emph default
+the
+\emph on
+ university, 
+\emph default
+a 
+\emph on
+third place
+\emph default
+, and 
+\emph on
+other.
+
+\emph default
+ We infer the home location for each student by clustering all his or her
+ location measurements between 11PM and 4AM using DBSCAN () into the set
+ of clusters 
+\emph on
+C.
+
+\emph default
+ We then select 
+\begin_inset Formula $max(|c|),c\in C$
+\end_inset
+
+ as a student's home location.
+ For assigning students to the 
+\emph on
+university 
+\emph default
+context we mapped the campus of their university and checked whether students
+ where within 50 meters of the campus.
+ To infer the 
+\emph on
+third places 
+\emph default
+for each student we first construct the set of all the stop locations a
+ student would visit 
+\begin_inset Formula $L_{stop}$
+\end_inset
+
+.
+ For each 
+\begin_inset Formula $l\in L_{stop}$
+\end_inset
+
+ we can also observe the amount of time 
+\emph on
+t(l)
+\emph default
+ a student spends there.
+ We then define a 
+\emph on
+third place 
+\emph default
+as any 
+\begin_inset Formula $l\in L_{stop}$
+\end_inset
+
+that fulfills the following inequality: 
+\begin_inset Formula $t(l)/\sum t(l_{i})\geq0.1$
+\end_inset
+
+ and is not either 
+\emph on
+home 
+\emph default
+or 
+\emph on
+university
+\emph default
+.
+ A 
+\emph on
+third place 
+\emph default
+is thus any location where a student spends at least 10% of his time that
+ is neither 
+\emph on
+home 
+\emph default
+nor 
+\emph on
+university.
+ 
+\emph default
+Lastly any other 
+\begin_inset Formula $l\in L_{stop}$
+\end_inset
+
+ is classified as 
+\emph on
+other.
+
+\emph default
+ 
+\end_layout
+
+\begin_layout Subsubsection
+Activity pattern and social interactions
+\end_layout
+
+\begin_layout Standard
+Looking at the aggregated weekly activity pattern of all students one can
+ [say something about the figure].
+ First, we observe that during weekdays the two clearly dominating settings
+ are 
+\emph on
+home 
+\emph default
+or 
+\emph on
+university 
+\emph default
+and the pattern is remarkably similar for all weekdays.
+ Second, during weekends the dominant setting is 
+\emph on
+third Places 
+\emph default
+while almost no one visits the 
+\emph on
+university.
+
+\emph default
+ Also people explore a lot of 
+\emph on
+other 
+\emph default
+locations during the weekend as well.
+ Thus, the behavior of students is consequentially different on weekdays
+ than from weekends.
+ Thus, it seems to safe to conclude that there is indeed a relationship
+ between geographic setting and time as the observed behavior is too regular
+ to be product of chance.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Weekly aggregated activity pattern
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Activity-pattern"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename /home/christoph/raman/home/christoph/linkPrediction/results/actitivityPattern.png
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset Formula $\overline{x}_{peers}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename /home/christoph/raman/home/christoph/linkPrediction/results/meetingsDistribution.png
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+When looking at when people meet as in figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:average-peers"
+
+\end_inset
+
+ one can clearly distinguish between weekdays and weekends and between days
+ and nights.
+ However, when looking at the different geographic contexts the picture
+ is less clear.
+ Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:deviation-average-peers"
+
+\end_inset
+
+ shows the absolute deviation from the average amount of peers present for
+ each geographic setting.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:deviation-average-peers"
+
+\end_inset
+
+Deviation from 
+\begin_inset Formula $\overline{x}_{peers}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename /home/christoph/raman/home/christoph/linkPrediction/results/meetingsDistributionAllContexts.png
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+While one can spot differences their interpretation is less straight forward
+ and one cannot determine whether the differences are due to chance.
+ Lag plots are often used to determine whether a series is random or not
+ (find a quote).
+ An analysis of the lags in figure X reveals that the variations are not
+ random as there are clearly linear patterns visible for all geographic
+ contexts
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Lag-plots-deviations"
+
+\end_inset
+
+Lag plots deviations of 
+\begin_inset Formula $\overline{x}_{peers}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename /home/christoph/raman/home/christoph/linkPrediction/results/lag_peers.png
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\overline{x}_{edge\,Life}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename /home/christoph/raman/home/christoph/linkPrediction/results/edge_life_contexts.png
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+If one looks at the the average edge life of each interaction between students
+ for the different settings one can see that students interact for longer
+ at home, at a third place, and at an other place then at university.
+ At the university students interact for roughly 90 minutes, whereas the
+ interactions at the other settings are significantly longer.
+ Also the length of interactions is dependent on the time of the day.
+ To offer a blunt interpretation: People don't interact when they are sleeping.
+\end_layout
+
+\begin_layout Standard
+We thus conclude that are differences in how, when, for how long, and whom
+ people meet and interact with in our data.
+ Furthermore, the activities and interaction of the students are not random
+ but follow identifiable patterns.
+ Students socialize more at home and at places that are important to them,
+ they do not visit the university during the weekend, and are more likely
+ to be out during the weekend than at home.
+ Taken at it's face value those findings are rather unexciting, but we will
+ use those differences for predicting who will meet whom in the next section.
+ 
+\end_layout
+
+\begin_layout Section
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Prediction"
+
+\end_inset
+
+Link prediction
+\end_layout
+
+\begin_layout Standard
+Random Forests have been consistently shown to perform well in link-prediction
+ tasks (for example X and Y) and we thus opt to use them for our prediction
+ task as well.
+ We are particularly interested in the drivers of social interaction or
+ in other words what set of features gives us the best prediction and to
+ a lesser extent in evaluating different classifiers for the prediction
+ task at hand.
+\end_layout
+
+\begin_layout Subsection
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Dt-and-Dt"
+
+\end_inset
+
+Choosing 
+\begin_inset Formula $\triangle T$
+\end_inset
+
+ and 
+\begin_inset Formula $\triangle t$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+As Yang et al () have shown setting the length of 
+\begin_inset Formula $\triangle T$
+\end_inset
+
+ and 
+\begin_inset Formula $\triangle t$
+\end_inset
+
+ has an impact on the performance of the resulting link prediction.
+ Yang et al () have proposed to use the time series of the density of the
+ network as a guide for selecting 
+\begin_inset Formula $\triangle T$
+\end_inset
+
+ and we mostly follow their approach here.
+ When looking at the density time series (figure density time series) one
+ can clearly identify a weekly pattern, but also seasonal effects.
+ Periods of low density either coincide with holidays or with exam periods.
+ We thus opt to use a 
+\begin_inset Formula $\triangle T$
+\end_inset
+
+ of 14 days as this is the shortest time-period that captures the weekly
+ periodicity as well as mitigates the negative effects of seasonality.
+ Furthermore, we keep 
+\begin_inset Formula $\triangle T$
+\end_inset
+
+ fixed in order to be able to compare the performance of the algorithm at
+ different time-points througout our experiment.
+\end_layout
+
+\begin_layout Standard
+Contrary to Yang et al () we did not opt to use the average duration of
+ an interaction as 
+\begin_inset Formula $\triangle t$
+\end_inset
+
+.
+ While the average length of interaction is around 806 seconds, we chose
+ to instead use several hours as
+\begin_inset Formula $\triangle t$
+\end_inset
+
+ (
+\begin_inset Formula $\triangle t=6h$
+\end_inset
+
+).
+ As this allows us to predict whether there will be an edge between u,v
+ e V, but also to distinguish between the strength of the tie over the course
+ of a longer time interval.
+ This is important as we are much more interested in the drivers of interaction
+ than in correctly predicting chance encounters.
+ A shorter 
+\begin_inset Formula $\triangle t$
+\end_inset
+
+ would not allow us to predict the length and thus the nature of the interaction.
+ Furthermore, compare the entropy of different length of encounters in table
+ X.
+ We can see that longer encounters are have a consequentially lower entropy
+ value than shorter ones, the ones we are most interested in.
+ Furthermore, encounters of an undefined length make up around 0.49[check
+ this figure on the whole dataset] of all encounters, i.e.
+ encounters that appear in only sampling interval of the smartphone and
+ we thus cannot assign a meaningful duration.
+\end_layout
+
+\begin_layout Subsection
+Search space
 \end_layout
 
 \begin_layout Standard
@@ -640,10 +1077,217 @@ mobility
  friends () as potential candidates for new ties.
  However, our network is small enough that is still computationally feasible
  to consider all possible pairs of nodes.
- Furthermore, there is a lot of change in the structure of the graph happening
- between time points (get average figure for this) and restricting the search
- space would exclude several potential candidates at each time step.
+ Furthermore, we can observe a lot of change in the structure of the graph
+ between time points (figure X) and restricting the search space would exclude
+ several potential candidates at each time step.
+ We have to admit thought that our approach thus does not scale well to
+ much larger datasets.
+\end_layout
+
+\begin_layout Subsection
+Feature vectors
+\end_layout
+
+\begin_layout Subsubsection
+Baseline features
+\end_layout
+
+\begin_layout Standard
+As our baseline features for all subsequent models we include 
+\emph on
+recency
+\emph default
+, the amount of elapsed time since the last meeting, 
+\emph on
+activeness, 
+\emph default
+how often two nodes interacted (Quotes from the Yang paper) and how much
+ time spent two nodes spent together during the training period.
+\end_layout
+
+\begin_layout Subsubsection
+Context features
+\end_layout
+
+\begin_layout Standard
+We also include several features pertaining to the setting wherein two nodes
+ meet.
+ These can be split into features relating to time, space, and the social
+ realm.
+ The time related features pertain to capture weekly behavioral patterns.
+ Let M be the set of all meetings between two nodes u, v in the training
+ period.
+ We then include a 
+\emph on
+vector(hour-of-day(M))
+\emph default
+, 
+\emph on
+vector((hour-of-week(M))
+\emph default
+, 
+\emph on
+vector((day-of-week(M))
+\emph default
+.
+\end_layout
+
+\begin_layout Standard
+We also include 
+\emph on
+min
+\emph default
+(
+\emph on
+place entropy)
+\emph default
+ (quote) of the meetings as we reason that there is a difference in whether
+ two people meet at a place a lot of people visit and thus with high place
+ entropy or at 
+\begin_inset Quotes eld
+\end_inset
+
+quieter
+\begin_inset Quotes erd
+\end_inset
+
+ place with low place entropy.
+ Or in other words, if two student meet at the university then this probably
+ does not tell us that much as a lot of people are meeting there, but if
+ two people meet at their respective homes then this is a much more unlikely
+ and thus noteworthy event.
+\end_layout
+
+\begin_layout Standard
+We also infer the 
+\emph on
+relative importance 
+\emph default
+of each venue for each user by measuring the amount of time a user spends
+ there and consequently ranking them.
+ We then include the 
+\emph on
+max(relative importance)
+\emph default
+ of a meeting between any 
+\begin_inset Formula $u,v\in N$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Let 
+\begin_inset Formula $context(M)$
+\end_inset
+
+ be the function that counts the amount of time two nodes 
+\begin_inset Formula $u,v$
+\end_inset
+
+ have spent together at the different geographic contexts (as defined in
+ section something).
+ We then include the vector(context(M)) as a feature as well.
+ The reasoning being that by measuring the amount of time two nodes spent
+ together in different geographic settings might allow us to gauge the quality
+ of their relationship.
+ For example, if two nodes only ever meet at the university they are likely
+ just colleagues, but if they meet in other settings as well they might
+ have a stronger relationship.
+\end_layout
+
+\begin_layout Standard
+But it is not only the physical qualities of the place that might influence
+ the pattern of interactions but also the social setting an interaction
+ occurs.
+ If two students meet at the university during a course this does is not
+ extraordinary, but if two students meet alone on the campus there is a
+ higher likelihood that they are socializing.
+ Let now P be the distribution of the number of other people from the study
+ that present when two nodes u and v meet.
+ We then include 
+\emph on
+min(P)
+\emph default
+ as well as 
+\emph on
+avg(P)
+\emph default
+ as features.
+\end_layout
+
+\begin_layout Standard
+Triadic-closure that is in social network the process that friends of friends
+ are likely to become my friends as well has been known to play a significant
+ role in network formation (find a quote).
+ Yang et al (quote) have used the 
+\begin_inset Quotes eld
+\end_inset
+
+triadic periods
+\begin_inset Quotes erd
+\end_inset
+
+ successfully as features for predicting interactions before.
+ We build upon their work and adapt their metric for our problem.
+ The main idea is to count the different possible arrangements of triads
+ in the interaction graph, or in other words the different possible configuratio
+ns of collocations.
+ Figure [X] shows the possible arrangements of collocation triads (excluding
+ symmetric triads).
  
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Triadic periods
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename triads.png
+	lyxscale 20
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Network features
+\end_layout
+
+\begin_layout Standard
+We also include several features that are based on the network topology
+ of the interaction graph and have been used in link-prediction problems
+ before.
+ In particular we include Adamic Adar (quote), the Jaccard coefficient (quote),
+ preferential attachment (quote), ressource allocation (quote), and random
+ walk with restarts (quote).
 \end_layout
 
 \begin_layout Subsection
@@ -651,9 +1295,8 @@ Null Model
 \end_layout
 
 \begin_layout Standard
-[null model] As a benchmark to test our predictions against we also developed
- a null model for a time-evolving weighted interaction graph with dissolving
- ties.
+As a benchmark to test our predictions against we also developed a null
+ model for a time-evolving weighted interaction graph with dissolving ties.
  The null model asserts that change between time-points in G is happening
  randomly, while it adheres to the true amount of change of the graph between
  time-points.
@@ -666,7 +1309,7 @@ True change
 \end_inset
 
  in our case means created ties (
-\begin_inset Formula $E_{t+1}\backslash E_{t}$
+\begin_inset Formula $E_{t+\triangle t}\backslash E_{t}$
 \end_inset
 
 ) as well as dissolved ties (
@@ -682,7 +1325,7 @@ True change
 \noun off
 \color none
 
-\begin_inset Formula $E_{t+1}\backslash E_{t}$
+\begin_inset Formula $E_{t+\triangle t}\backslash E_{t}$
 \end_inset
 
 
@@ -699,17 +1342,54 @@ True change
 \color inherit
 ) for each class.
  Where we take the probability that a tie changes classes between time-points
- - P (xt+1 | yt0) where x, y E {0,1,2,3} - from the observation of the actual
- change between Gt and Gt+1.
+ - 
+\begin_inset Formula $P(x_{t+\triangle t}|y_{t})$
+\end_inset
+
+ where 
+\begin_inset Formula $x,y\in\{0,1,2,3\}$
+\end_inset
+
+ - from the observation of the actual change between 
+\begin_inset Formula $G_{t}$
+\end_inset
+
+ and 
+\begin_inset Formula $G_{t+\triangle t}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Experimental Setup
 \end_layout
 
 \begin_layout Standard
-We use the first one to refine our hypothesis and to develop our model,
- while we use the second dataset to test our model.
- In this way we avoid [self-biasing] our analysis.
+We developed and tested it our model on our smaller dataset before running
+ the 
+\begin_inset Quotes eld
+\end_inset
+
+completed
+\begin_inset Quotes erd
+\end_inset
+
+ model on our second, larger and independent dataset.
+ This way we avoid biasing ourselves and developing our model to fit our
+ data.
+ Only after we fully developed our model, did we proceed to re-run our algorithm
+ on the second, bigger dataset.
+ [I need a quote for this and add some words].
 \end_layout
 
 \begin_layout Section
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Findings"
+
+\end_inset
+
 Findings
 \end_layout
 
@@ -722,11 +1402,49 @@ Findings
 \end_layout
 
 \begin_layout Subsection
-[Findings for the different 'classes']
+[Findings for the different models]
+\end_layout
+
+\begin_layout Subsection
+[Performance of the node-only model] 
+\end_layout
+
+\begin_layout Standard
+Sometimes one however might not have access to the whole network and one
+ might only be in possession of more or less isolated node level data.
+ Consequently one is unable to calculate or reliably estimate the network
+ features we describe in section [something].
+ We simulate such a scenario by building another model that only incorporates
+ data on a node-level.
+ [We can see something and we do something] 
+\end_layout
+
+\begin_layout Standard
+[Probably we can see that the model works okay and that for node-level informati
+on the setting information is more important]
+\end_layout
+
+\begin_layout Subsection
+[Performance of several different T lengths]
+\end_layout
+
+\begin_layout Subsection
+[network prediction performance]
 \end_layout
 
 \begin_layout Section
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Conclusion"
+
+\end_inset
+
 Conclusion/Discussion
+\end_layout
+
+\begin_layout Standard
+[expand on node-level prediction: Potentially having separate models for
+ each user]
 \end_layout
 
 \end_body

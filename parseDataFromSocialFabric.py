@@ -1,18 +1,25 @@
 # Parse data for link prediction
 
-from geogps import Parser
-from geogps import TimeAux
-from geogps import EstimateSignificantLocations as esl
-from geogps import Partition
-from geogps.DictAux import dddd_list, DefaultOrderedDict
+from gs import parser
+from gs import timeAux
+from gs import estimateSignificantLocations as esl
+from gs import partition
+from gs.dictAux import defaultdict_defaultdict_DefaultOrderedDict,\
+    dddd_list, dd_list, DefaultOrderedDict
 from bisect import bisect_left
 from delorean import Delorean
+# from groupStore import dict2group
 
+# import hickle as hkl
+# import joblib
+import collections
+import numpy as np
 import pytz
 import re
+import resource
 import os
 import sys
-import collections
+# import tables
 import pickle
 
 amsterdam = pytz.timezone('Europe/Amsterdam')
@@ -40,6 +47,11 @@ if __name__ == "__main__":
 
     print('Version 0.1')
 
+    ''' Set memory limit '''
+    rsrc = resource.RLIMIT_AS
+    soft, hard = resource.getrlimit(rsrc)
+    resource.setrlimit(rsrc, (1024*1024*1024*30, hard))  # limit is in bytes
+
     ''' Parse in the system arguments '''
     inputLocations = sys.argv[1]
     inputContext = sys.argv[2]
@@ -49,36 +61,49 @@ if __name__ == "__main__":
     outputPath = sys.argv[6]
     scriptDir = os.path.dirname(os.path.abspath(__file__))
 
-    inputLocations = Parser.parsePath(inputLocations, scriptDir)
-    inputContext = Parser.parsePath(inputContext, scriptDir)
-    outputPath = Parser.parsePath(outputPath, scriptDir)
+    inputLocations = parser.parsePath(inputLocations, scriptDir)
+    inputContext = parser.parsePath(inputContext, scriptDir)
+    outputPath = parser.parsePath(outputPath, scriptDir)
 
     ''' Read all sig. locations from the saved pickles '''
+    print('reading sig. locations')
     pattern = re.compile('sig_locations_user_([0-9]+)\.pck')
-    sigLocs = Parser.loadPickles(inputLocations, pattern)
+    # pattern = re.compile('sig_locations_user_([0-9])\.pck')
+    stopLocs = parser.loadPickles(inputLocations, pattern)
+
+    for user, values in stopLocs.items():
+        for intervall, _ in values.items():
+            ts = intervall[1] - intervall[0]
+            assert ts > 0, 'Error in stopLoc duration. Must be positive'
 
     ''' Find the first and last midnights bounding the observations '''
-    minimum = min([t[0] for v in sigLocs.values() for t in v.values()],
+    minimum = min([t[0] for v in stopLocs.values() for t in v.values()],
                   key=lambda x: x.time)
-    maximum = max([t[0] for v in sigLocs.values() for t in v.values()],
+    maximum = max([t[0] for v in stopLocs.values() for t in v.values()],
                   key=lambda x: x.time)
-    firstMonday = TimeAux.localTimeToEpoch(
-        Delorean(TimeAux.epochToLocalTime(minimum.time,
+    firstMonday = timeAux.localTimeToEpoch(
+        Delorean(timeAux.epochToLocalTime(minimum.time,
                                           amsterdam)).last_monday().midnight())
-    lastSunday = TimeAux.localTimeToEpoch(
-        Delorean(TimeAux.epochToLocalTime(maximum.time,
+    lastSunday = timeAux.localTimeToEpoch(
+        Delorean(timeAux.epochToLocalTime(maximum.time,
                                           amsterdam)).next_monday().midnight())
 
     ''' Infer users '''
-    users = Parser.inferUsers(inputLocations, pattern)
+    users_locations = parser.inferUsers(inputLocations, pattern)
+    users_blues = parser.inferUsers(inputBT, pattern)
+    users = users_locations | users_blues
 
     ''' Read the geo contexts from the saved pickles '''
+    print('reading geographic contexts')
     pattern = re.compile('geographic_context_sig_loc_user_([0-9]+)\.pck')
-    context = Parser.loadPickles(inputContext, pattern)
+    # pattern = re.compile('geographic_context_sig_loc_user_([0-9])\.pck')
+    context = parser.loadPickles(inputContext, pattern)
 
     ''' Read in the bluetooth filepaths '''
-    pattern = re.compile('bluetooth_user_([0-9]+)\.ssv')
-    listOfBTFiles = Parser.readFiles(inputBT, pattern)
+    print('reading bluetooths')
+    pattern = re.compile('bluetooth_([0-9]+)')
+    listOfBTFiles = parser.readFiles(inputBT, pattern)
+    users = parser.inferUsers(inputLocations, pattern, users=users)
 
     mappingForContexts = {'college': 'university',
                           'home': 'home',
@@ -96,48 +121,37 @@ if __name__ == "__main__":
                    for e in v]
                for k, v in context.items()}
 
-    ''' TO DO: Try what happens if you pass a nested list and what
-    happens when you pass a flat list '''
+    print('create global index of sig. locations')
     # I can do this because I have OrderedDicts
-    listOfSigLocs = [e[0] for v in list(sigLocs.values()) for e in v.values()]
+    listOfStopLocs = [e[0] for v in list(stopLocs.values()) for e in v.values()]
     # listOfSigLocs = Aux.flatten([v.values() for v in sigLocs.values()])
-    globalSigLocs = esl.clusterLocationsInSpace(listOfSigLocs)
+    globalSigLocs = esl.clusterLocationsInSpace(listOfStopLocs)
     # Match the labels of the globalSigLoc to the individual locations
     # Create a lookup data structure
     # EDGE CASE: What if a user has no sig. locations? What happens then?
     globalSigLocsLabels = collections.defaultdict(list)
     index = 0
-    for user, sls in sigLocs.items():
+    for user, sls in stopLocs.items():
         for c in sls:
             globalSigLocsLabels[user].append(globalSigLocs[index])
             index += 1
 
     ''' Add the context and the global label to locations '''
+    print('adding context')
+    # Am I doing this correctly?
     newLocations = collections.defaultdict(DefaultOrderedDict)  # A very nested
     # dictionary, should probably be ordered
-    for user, locations in sigLocs.items():
+    for user, locations in stopLocs.items():
         for i, (time, ls) in enumerate(locations.items()):
             assert len(ls) == 2
             (l, localLabel) = ls
             con = context[user][i]
             globalLabel = globalSigLocsLabels[user][i]
-            newLocations[user][time] = tuple([l, con, localLabel, globalLabel])
-
-    ''' Find the densest period to determine the intervalls for training and
-    test data '''
-    countObservations = list()
-    for user, locations in sigLocs.items():
-        for time, ls in locations.items():
-            l = ls[0]
-            begin = time[0]
-            end = time[1]
-            countObservations.extend(list(range(begin, end, 60)))
+            newLocations[user][time] = [(time[0], time[1]), con,
+                                        localLabel, globalLabel]
 
     ''' Split the stop locations into bins '''
-    # Also take into account the densities of the localized Bluetooth
-    # measurements. See also the plots from lookAtDensities.py
-    # timeDelta = int((lastSunday - firstMonday)/numberOfIntervalls)
-    # cutOff = firstMonday + (lastSunday - firstMonday)/4
+    print('splitting stop locs')
     slidingTimeDelta = 0
     offset = int(timeDelta / numberOfIntervalls)
 
@@ -151,58 +165,99 @@ if __name__ == "__main__":
         slidingTimeIntervalls.append(ls)
     timeIntervalls.sort(key=lambda x: x[0])
 
-    stopLocations = collections.defaultdict(collections.OrderedDict)
+    stopLocations = collections.defaultdict(
+        defaultdict_defaultdict_DefaultOrderedDict)
     while slidingTimeDelta < timeDelta:
         for user, locations in newLocations.items():
             partitionedLocations =\
-                Partition.splitByTimedelta(locations.items(),
-                                           timeDelta,
-                                           lookupKey=lambda x: x[1][0].time,
-                                           lowerBound=firstMonday+slidingTimeDelta,
-                                           upperBound=lastSunday)
+                partition.partitionTimePeriods(
+                    locations.values(),
+                    timeDelta,
+                    lookupKey=lambda x: (x[0][0], x[0][1]),
+                    setter=lambda e, t: e.__setitem__(0, t),
+                    lowerBound=firstMonday + slidingTimeDelta,
+                    upperBound=lastSunday)
             for timePeriod, locations in partitionedLocations.items():
-                stopLocations[user][timePeriod] = collections.OrderedDict(
-                    locations)
+                locations = sorted(list(locations), key=lambda x: x[0][0])
+                for l in locations:
+                    stopLocations[user][timePeriod][l[0]] = l
         slidingTimeDelta += offset
 
     ''' Match the bluetooths to sig. locations '''
-    BTs = collections.defaultdict(dddd_list)
-    blues = collections.defaultdict(list)
+    localizedBlues = collections.defaultdict(dddd_list)
+    blues = collections.defaultdict(dd_list)
+    print('matching bluetooths')
+    numberOfUsers = 0
     for BTFilename in listOfBTFiles:
-        node = Parser.parseBTTracesForOneUser(BTFilename, userIDIndex=0,
-                                              time=1, strength=4, peer=5)
-        print('Matching BTs of user: ' + str(node.name))
-        node.discardUnknownBluetooths()
-        node.discardWeakBluetooths(lowerBound=-80, upperBound=100)
-        node.bluetooths.sort(key=lambda x: x.time)
+        if os.stat(BTFilename).st_size != 0:
+            node = parser.parseBTTracesForOneUser(BTFilename, userIDIndex=3,
+                                                  time=2, strength=1, peer=0)
+            numberOfUsers += 1
+            print(numberOfUsers/len(users))
+            node.discardUnknownBluetooths()
+            node.discardWeakBluetooths(lowerBound=-80, upperBound=100)
+            node.bluetooths.sort(key=lambda x: x.time)
+            partitionedBlues = partition.splitBySlidingTimedelta(
+                node.bluetooths, timeDelta, offset,
+                lookupKey=lambda x: x.time,
+                lowerBound=firstMonday,
+                upperBound=lastSunday)
 
-        blues[str(node.name)] =\
-            Partition.splitBySlidingTimedelta(node.bluetooths,
-                                              timeDelta,
-                                              offset,
-                                              lookupKey=lambda x: x.time,
-                                              lowerBound=firstMonday,
-                                              upperBound=lastSunday)
+            ''' Strip the bluetooth objects of their object nature to save
+            memory and convert them to tuples '''
+            newBlues = dict()
+            for time, meetings in partitionedBlues.items():
+                # ls = tuple([(b.peer, b.time) for b in meetings])
+                ls = np.asarray([(b.peer, b.time) for b in meetings])
+                blues[time][str(node.name)] = ls
 
-        ''' Match bluetooth to locations '''
-        for timePeriod, locations in stopLocations[str(node.name)].items():
-            if locations:
-                ksLower, ksUpper = zip(*locations)
-                for bt in node.bluetooths:
-                    posSL = matchBTToSigLoc(bt, ksLower, ksUpper)
-                    if posSL:
-                        peer = bt.peer
-                        BTs[str(node.name)][timePeriod][posSL][peer].append(bt)
+            ''' Match bluetooth to locations '''
+            for timePeriod, locations in stopLocations[str(node.name)].items():
+                if locations:
+                    ksLower, ksUpper = zip(*locations)
+                    for bt in node.bluetooths:
+                        posSL = matchBTToSigLoc(bt, ksLower, ksUpper)
+                        if posSL:
+                            peer = bt.peer
+                            localizedBlues[timePeriod][str(
+                                node.name)][posSL][peer].append(
+                                    bt.time)
 
-    results = dict()
-    results['localizedBlues'] = BTs
-    results['blues'] = blues
-    results['stopLocs'] = stopLocations
-    results['count'] = countObservations
-    results['intervalls'] = timeIntervalls
-    results['slidingIntervalls'] = slidingTimeIntervalls
+            ''' Convert the lists of matched bluetooths to numpy arrays '''
+            timePeriods = localizedBlues.keys()
+            for time in timePeriods:
+                for posSl, peers in localizedBlues[time][str(node.name)].items():
+                    for peer, bluetooths in peers.items():
+                        ls = np.asarray(bluetooths)
+                        localizedBlues[str(node.name)][timePeriod][posSL][peer] = ls
+
 
     ''' Feature extraction '''
-    with open(outputPath + '/parsedData_time_' +
-              str(timeDelta/3600/24).replace('.', '_') + '.pck', 'wb') as f:
+    print('dumping file')
+    filename = str(outputPath) + 'parsedData_time_' +\
+        str(timeDelta).replace('.', '_')
+
+    for period, values in blues.items():
+        with open(filename + '_blue_' + str(period[0]) + '_' +
+                  str(period[1]) + '.pck', 'wb') as f:
+            pickle.dump(values, f)
+    blues = []
+
+    for period, values in localizedBlues.items():
+        with open(filename + '_localizedBlue_' +
+                  str(period[0]) + '_' + str(period[1]) +
+                  '.pck', 'wb') as f:
+            pickle.dump(values, f)
+    localizedBlues = []
+
+    results = dict()
+    # results['localizedBlues'] = localizedBlues
+    # results['blues'] = blues
+    results['stopLocs'] = stopLocations
+    # results['count'] = countObservations
+    results['intervalls'] = timeIntervalls
+    results['slidingIntervalls'] = slidingTimeIntervalls
+    results['users'] = users
+
+    with open(filename + '_results.pck', 'wb') as f:
         pickle.dump(results, f)

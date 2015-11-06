@@ -1,5 +1,5 @@
-from geogps import Parser
-from geogps.DictAux import DefaultOrderedDict
+from gs import parser
+from gs.DictAux import DefaultOrderedDict
 from predictLinks import RandomForestLinkPrediction as rf
 from nullModel import NullModel
 
@@ -24,6 +24,7 @@ def scoreModels(model, dictionaries, key):
     scores = acc, prec, rec, roc_macro, roc_micro, pr_macro, pr_micro
     for d, score in zip(dictionaries, scores):
         d[key].append(score)
+
 
 def scoreNullModel(dictionaries, NMacc, NMprec, NMrec, NMroc_auc, NMpr_auc):
     acc = statistics.mean(NMacc)
@@ -56,20 +57,20 @@ if __name__ == "__main__":
 
     scriptDir = os.path.dirname(os.path.abspath(__file__))
 
-    inputData = Parser.parsePath(inputData, scriptDir)
+    inputData = parser.parsePath(inputData, scriptDir)
     trainingPattern = re.compile('train_sample_[0-9]+\.csv')
-    trainingFiles = Parser.readFiles(inputData, trainingPattern)
+    trainingFiles = parser.readFiles(inputData, trainingPattern)
     testPattern = re.compile('test_sample_[0-9]+\.csv')
-    testingFiles = Parser.readFiles(inputData, testPattern)
+    testingFiles = parser.readFiles(inputData, testPattern)
     lengthOfPeriod = float(inputData.split('/')[-3].replace('_', '.'))
     unixTime = int(inputData.split('/')[-1])
-    timestep = float((unixTime-1349042400)/24/3600/lengthOfPeriod)
+    timestep = float((unixTime-1349042400)/lengthOfPeriod)
 
     ''' Null model '''
     networkPatternT0 = re.compile('[0-9]+\-' + str(unixTime) + '\.csv')
     networkPatternT1 = re.compile(str(unixTime) + '\-[0-9]+\.csv')
-    networkFileT0 = Parser.readFiles(inputNetworks, networkPatternT0)[0]
-    networkFileT1 = Parser.readFiles(inputNetworks, networkPatternT1)[0]
+    networkFileT0 = parser.readFiles(inputNetworks, networkPatternT0)[0]
+    networkFileT1 = parser.readFiles(inputNetworks, networkPatternT1)[0]
 
     ''' Match training to test files '''
     matchFilesPattern = re.compile('_([0-9]+)\.csv')
@@ -85,11 +86,6 @@ if __name__ == "__main__":
                     for e in trainingFiles]
 
     ''' Define the different models '''
-    ''' Random feature model '''
-    randomFeatures = [
-        'random'
-    ]
-
     ''' Past model '''
     pastFeatures = [
         'friends'
@@ -130,20 +126,22 @@ if __name__ == "__main__":
     socialFeatures.extend(copy.copy(baseFeatures))
     socialFeatures.extend([
         'spatialTriadicClosure',
-        'candidatesSpatialTriadicClosure',
         'numberOfPeople'])
-
+    # TODO Update features
     placeFeatures = []
     placeFeatures.extend(copy.copy(baseFeatures))
     placeFeatures.extend([
-        'metAtHome',
-        'metAtUniversity',
-        'metAtThirdPlace',
-        'metAtOtherPlace',
         'timeSpentAtHomeWith',
         'timeSpentAtUniversityWith',
         'timeSpentAtThirdPlaceWith',
         'timeSpentAtOtherPlaceWith'])
+
+    ''' Node only features '''
+    nodeFeatures = []
+    nodeFeatures.extend(copy.copy(baseFeatures))
+    nodeFeatures.extend(copy.copy(placeFeatures))
+    nodeFeatures.extend(copy.copy(socialFeatures))
+    nodeFeatures.extend(copy.copy(timeFeatures))
 
     ''' time social place '''
     timeSocialPlaceFeatures = copy.copy(baseFeatures)
@@ -191,10 +189,6 @@ if __name__ == "__main__":
         NMrecs.append(NMrec)
 
     for train, test in files:
-        randomModel = rf(train, test, randomFeatures, n_jobs=n_jobs)
-        scoreModels(randomModel, results, 'random')
-        featureImportance['random'].append(randomModel.importances)
-
         pastModel = rf(train, test, pastFeatures, n_jobs=n_jobs)
         scoreModels(pastModel, results, 'past')
         featureImportance['past'].append(pastModel.importances)
@@ -210,6 +204,10 @@ if __name__ == "__main__":
         networkModel = rf(train, test, networkFeatures, n_jobs=n_jobs)
         scoreModels(networkModel, results, 'network')
         featureImportance['network'].append(networkModel.importances)
+
+        nodeModel = rf(train, test, nodeFeatures, n_jobs=n_jobs)
+        scoreModels(nodeModel, results, 'node')
+        featureImportance['node'].append(nodeModel.importances)
 
         timeModel = rf(train, test, timeFeatures, n_jobs=n_jobs)
         scoreModels(timeModel, results, 'time')
@@ -262,7 +260,8 @@ if __name__ == "__main__":
             pr_macros = results[5][key]
             pr_micros = results[6][key]
 
-            for testSet, acc, prec, rec, roc_mac, roc_mic, pr_mac, pr_mic in zip(
+            for testSet, acc, prec, rec, roc_mac,\
+                roc_mic, pr_mac, pr_mic in zip(
                     testSetNames, accs, precs, recs, roc_macros, roc_micros,
                     pr_macros, pr_micros):
                 row = ' '.join([str(timestep), str(key),
@@ -287,7 +286,7 @@ if __name__ == "__main__":
                           timeSocialPlace=timeSocialPlaceFeatures,
                           full=fullFeatures, past=pastFeatures,
                           networkOnly=networkOnlyFeatures,
-                          random=randomFeatures)
+                          node=nodeFeatures)
 
     with open(outputPath + 'featureImportance.ssv', 'a') as f:
         for key, values in featureImportance.items():

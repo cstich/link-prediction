@@ -124,7 +124,7 @@ class PersonalizedPageRank(object):
                     # probabilites we propagate. The tie strengths have to add
                     # up to 1 for each node. Effectively we are talking about
                     # relative tie strengths
-                    if directed:
+                    if weighted:
                         weight = self.weights[node][neighbor]
                     else:
                         weight = 1

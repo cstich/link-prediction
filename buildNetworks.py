@@ -1,12 +1,16 @@
-from geogps import Aux
-from geogps import Parser
-from geogps import TimeAux
-from geogps.DictAux import ddd_int, ddd_list, dd_list, dd_set, DefaultOrderedDict
+from gs import aux
+from gs import dictAux
+from gs import parser
+from gs import timeAux
+from gs.dictAux import ddd_int, ddd_list, dd_list, dd_set, DefaultOrderedDict
 
 import collections
+import numpy as np
 import os
 import pickle
 import pytz
+import re
+import resource
 import statistics
 import sys
 
@@ -24,6 +28,23 @@ def calculateDifference(x, y):
             return 0
         else:
             return 1
+
+
+def createOutgoingWeightedTies(rawFriends):
+    outgoingFriends = collections.defaultdict(ddd_int)
+    for user, values in rawFriends.items():
+        for timePeriod, observations in values.items():
+            for peer, meetings in observations.items():
+                meetings = sorted(meetings)
+                meetings = list(
+                    aux.difference(meetings))
+                if len(meetings) > 0:
+                    meetings = aux.filterList(
+                        meetings, lambda x: x > 0 and x <= 305)
+                    meetings = sum(meetings)
+                    outgoingFriends[str(user)][timePeriod][peer]\
+                        += meetings
+    return outgoingFriends
 
 
 def createIncomingTies(friends):
@@ -147,196 +168,179 @@ def filterFriends(friends, minNumberOfMeetings):
 def findUniversityMeetings(meetings):
     result = list()
     for m in meetings:
-        now = TimeAux.epochToLocalTime(m.time, amsterdam)
+        now = timeAux.epochToLocalTime(m, amsterdam)
         if now.hour <= 18 and now.hour >= 9 and now.weekday() <= 4:
             result.append(m)
     return result
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 11:
+    if len(sys.argv) != 6:
         print("Usage: %s " % (sys.argv[0]) +
               "<data path> "
-              "<min. number of meetings> "
-              "<min. amount of seconds> "
-              "<output directory for social friends> "
-              "<output directory for university friends> "
-              "<output directory for 'all' friends> "
               "<output directory for 'weighted social' friends> "
               "<output directory for 'weighted university' friends> "
               "<output directory for 'weighted all' friends> "
               "<whether to export or to just get statistics>")
         sys.exit(-1)
 
+    ''' Set memory limit '''
+    rsrc = resource.RLIMIT_AS
+    soft, hard = resource.getrlimit(rsrc)
+    resource.setrlimit(rsrc, (1024*1024*1024*30, hard))  # limit is in bytes
+
+    ''' Load data '''
     inputData = sys.argv[1]
-    minNumberOfMeetings = int(sys.argv[2])
-    minimumTime = int(sys.argv[3])
-    outputPathSocial = sys.argv[4]
-    outputPathUniversity = sys.argv[5]
-    outputPathAll = sys.argv[6]
-    outputPathWeighted = sys.argv[7]
-    outputPathWeightedUniversity = sys.argv[8]
-    outputPathWeightedAll = sys.argv[9]
-    export = bool(int(sys.argv[10]))
+    outputPathWeighted = sys.argv[2]
+    outputPathWeightedUniversity = sys.argv[3]
+    outputPathWeightedAll = sys.argv[4]
+    try:
+        export = bool(int(sys.argv[5]))
+    except ValueError:
+        outputPath = export
+        export = False
+
     scriptDir = os.path.dirname(os.path.abspath(__file__))
 
-    inputData = Parser.parsePath(inputData, scriptDir)
-
+    print('loadingData')
     with open(inputData, 'rb') as f:
         rs = pickle.load(f)
 
-    localizedBlues = rs['localizedBlues']
+    base = os.path.basename(inputData)
+    base = base.split('_')[2]
+    resultsDirectory = os.path.dirname(inputData)
+    transformKey = lambda x: tuple(x.split('_'))
+    locBluesPattern = re.compile(
+        'parsedData_time_'+base+'_localizedBlue_([0-9_]+)\.pck')
+    localizedBlues = parser.loadPickles(
+        resultsDirectory, locBluesPattern, transformKey=transformKey)
+    bluesPattern = re.compile(
+        'parsedData_time_'+base+'_blue_([0-9_]+)\.pck')
+    blues = parser.loadPickles(
+        resultsDirectory, bluesPattern, transformKey=transformKey)
+
     stopLocations = rs['stopLocs']
-    blues = rs['blues']
     timeIntervalls = list(rs['intervalls'])
+    usersLs = rs['users']
+    rs = []
 
     ''' Infer the place context friends for each time period '''
-    outgoingFriends = collections.defaultdict(dd_list)  # You are friends
-    # if you have met somewhere else than university for each period '''
-    outgoingUniversityFriends = collections.defaultdict(dd_list)  # These are
-    # your colleageus
+    print('Inferring context friends')
     outgoingWeightedFriends = collections.defaultdict(ddd_int)
     outgoingWeightedUniversityFriends = collections.defaultdict(ddd_int)
 
-    for user, timePeriods in localizedBlues.items():
-        for timePeriod, observations in timePeriods.items():
-            if observations:
+    for timePeriod, users in localizedBlues.items():
+        for timePeriod, observations in users.items():
+            if len(observations) > 0:
                 for locationIndex, observation in observations.items():
                     con = list(stopLocations[str(user)][timePeriod].values())
                     con = con[locationIndex][1]
                     for peer, meetings in observation.items():
-                        meetings = sorted(meetings, key=lambda x: x.time)
+                        meetings = sorted(meetings)
                         meetingsForUniversity = findUniversityMeetings(meetings)
-                        meetings = list(Aux.difference(
-                            [m.time for m in meetings]))
-                        meetingsForUniversity = list(Aux.difference(
-                            [m.time for m in meetingsForUniversity]))
+                        meetings = list(aux.difference(
+                            meetings))
+                        meetingsForUniversity = list(aux.difference(
+                            meetings))
 
                         if meetings:
-                            meetings = Aux.filterList(
+                            meetings = aux.filterList(
                                 meetings, lambda x: x > 0 and x <= 305)
                         meetings = sum(meetings)
                         if con != 'university' and con != 'University':
-                            outgoingWeightedFriends[str(user)][timePeriod][peer]\
-                                += meetings
-                            if meetings > minimumTime:
-                                outgoingFriends[str(user)][timePeriod].append(peer)
+                            outgoingWeightedFriends[
+                                str(user)][timePeriod][peer] += meetings
 
                         if meetingsForUniversity:
-                            meetingsForUniversity = Aux.filterList(
+                            meetingsForUniversity = aux.filterList(
                                 meetingsForUniversity,
                                 lambda x: x > 0 and x <= 305)
                         meetingsForUniversity = sum(meetingsForUniversity)
                         if con == 'university' or con == 'University':
-                            outgoingWeightedUniversityFriends[str(user)][timePeriod][peer]\
-                                += meetings
-                            if meetingsForUniversity > minimumTime:
-                                outgoingUniversityFriends[str(user)][timePeriod]\
-                                    .append(peer)
+                            outgoingWeightedUniversityFriends[
+                                str(user)][timePeriod][peer] += meetings
+
+    ''' Clear unused variables as soon as you don't need them anymore '''
+    print('clearing stopLocations')
+    stopLocations = list()
 
     ''' Process context friends '''
-    outgoingFriends = filterFriends(outgoingFriends, minNumberOfMeetings)
-    incomingFriends = createIncomingTies(outgoingFriends)
-    friends = combineNetworks(outgoingFriends, incomingFriends)
-
+    print('Process context friends')
     incomingWeightedFriends = createIncomingWeightedTies(
         outgoingWeightedFriends)
     weightedFriends = combineWeightedNetworks(
         outgoingWeightedFriends, incomingWeightedFriends)
-
-    outgoingUniversityFriends = filterFriends(
-        outgoingUniversityFriends, minNumberOfMeetings)
-    incomingUniversityFriends = createIncomingTies(outgoingUniversityFriends)
-    universityFriends = combineNetworks(
-        outgoingUniversityFriends, incomingUniversityFriends)
 
     incomingWeightedUniversityFriends = createIncomingWeightedTies(
         outgoingWeightedUniversityFriends)
     weightedUniversityFriends = combineWeightedNetworks(
         outgoingWeightedUniversityFriends, incomingWeightedUniversityFriends)
 
+    ''' Clear variables you don't need anymore '''
+    incomingWeightedFriends = None
+    outgoingWeightedFriends = None
+    incomingWeightedUniversityFriends = None
+    outgoingWeightedUniversityFriends = None
+
     ''' Build network based on the time people have met '''
-    outgoingTimeFriends = collections.defaultdict(dd_list)
-    outgoingWeightedTimeFriends = collections.defaultdict(ddd_int)
+    print('Inferring time friends')
     tempFriends = collections.defaultdict(ddd_list)
     tempAllFriends = collections.defaultdict(ddd_list)
-    outgoingAllFriends = collections.defaultdict(dd_list)
-    outgoingWeightedAllFriends = collections.defaultdict(ddd_int)
+    numberOfUsers = 0
 
-    for user, blue in blues.items():
-        for timePeriod, observations in blue.items():
-            if observations:
+    # TODO Fix the user/timePeiod key change
+    for timePeriod in blues.keys():
+        blue = blues[timePeriod]
+        # print('{:1.4f}'.format(numberOfUsers/len(usersLs)),
+        #     end=' ')
+        # sys.stdout.flush()
+        for user, observations in blue.items():
+            if len(observations) > 0:
                 for b in observations:
-                    now = TimeAux.epochToLocalTime(b.time, amsterdam)
-                    tempAllFriends[str(user)][timePeriod][b.peer].append(b)
+                    now = timeAux.epochToLocalTime(b[1], amsterdam)
+                    tempAllFriends[str(user)][timePeriod][b[0]].append(b[1])
                     if now.hour >= 18 or now.hour <= 9 or now.weekday() > 4:
-                        tempFriends[str(user)][timePeriod][b.peer].append(b)
+                        tempFriends[str(user)][timePeriod][b[0]].append(b[1])
+        ''' Convert to numpy array to save memory '''
+        timePeriods = tempFriends[str(user)]
+        dictAux.castLeaves(timePeriods, np.asarray)
+        timePeriods = tempAllFriends[str(user)]
+        dictAux.castLeaves(timePeriods, np.asarray)
+        ''' Clear the user once you don't need them anymore '''
+        blues[user] = None
+        numberOfUsers += 1
 
-    for user, values in tempFriends.items():
-        for timePeriod, observations in values.items():
-            for peer, meetings in observations.items():
-                meetings = sorted(meetings, key=lambda x: x.time)
-                meetings = list(
-                    Aux.difference([m.time for m in meetings]))
-                if len(meetings) > 0:
-                    meetings = Aux.filterList(
-                        meetings, lambda x: x > 0 and x <= 305)
-                    meetings = sum(meetings)
-                    outgoingWeightedTimeFriends[str(user)][timePeriod][peer]\
-                        += meetings
-                    if meetings > minimumTime:
-                        outgoingTimeFriends[str(user)][timePeriod].append(peer)
-
-    for user, values in tempAllFriends.items():
-        for timePeriod, observations in values.items():
-            for peer, meetings in observations.items():
-                meetings = sorted(meetings, key=lambda x: x.time)
-                meetings = list(
-                    Aux.difference([m.time for m in meetings]))
-                if len(meetings) > 0:
-                    meetings = Aux.filterList(
-                        meetings, lambda x: x > 0 and x <= 305)
-                    meetings = sum(meetings)
-                    outgoingWeightedAllFriends[str(user)][timePeriod][peer]\
-                        += meetings
-                    if meetings > minimumTime:
-                        outgoingAllFriends[str(user)][timePeriod].append(peer)
+    ''' Create outgoing times from the meetings '''
+    print('Create outgoing ties for time friends and all friends ''')
+    outgoingWeightedTimeFriends = createOutgoingWeightedTies(tempFriends)
+    tempFriends = None
+    outgoingWeightedAllFriends = createOutgoingWeightedTies(tempAllFriends)
+    tempAllFriends = None
 
     ''' Process time friends '''
-    outgoingTimeFriends = filterFriends(outgoingTimeFriends,
-                                        minNumberOfMeetings)
-    incomingTimeFriends = createIncomingTies(outgoingTimeFriends)
-    timeFriends = combineNetworks(outgoingTimeFriends, incomingTimeFriends)
-
+    print('Process time friends')
     incomingWeightedTimeFriends = createIncomingWeightedTies(
         outgoingWeightedTimeFriends)
     weightedTimeFriends = combineWeightedNetworks(outgoingWeightedTimeFriends,
                                                   incomingWeightedTimeFriends)
-
-    ''' Process 'all' friends '''
-    outgoingAllFriends = filterFriends(outgoingAllFriends, minNumberOfMeetings)
-    incomingAllFriends = createIncomingTies(outgoingAllFriends)
-    allFriends = combineNetworks(outgoingAllFriends, incomingAllFriends)
+    incomingWeightedTimeFriends = None
+    outgoingWeightedTimeFriends = None
 
     ''' Process weighted friends '''
     incomingWeightedAllFriends = createIncomingWeightedTies(
         outgoingWeightedAllFriends)
     weightedAllFriends = combineWeightedNetworks(
         outgoingWeightedAllFriends, incomingWeightedAllFriends)
+    incomingWeightedAllFriends = None
+    outgoingWeightedAllFriends = None
 
     ''' Build hybrid network - both time and context '''
-    hybridFriends = combineNetworks(friends, timeFriends)
+    print('Inferring hybrid friends')
     weightedHybridFriends = combineWeightedNetworks(
         weightedFriends, weightedTimeFriends)
 
     ''' Caldulate densities for the time slices '''
-    densities = networkDensitiesOverTime(friends, timeIntervalls)
-    densitiesUniversity = networkDensitiesOverTime(universityFriends,
-                                                   timeIntervalls)
-    densitiesTime = networkDensitiesOverTime(timeFriends, timeIntervalls)
-    densitiesHybrid = networkDensitiesOverTime(hybridFriends, timeIntervalls)
-    densitiesAll = networkDensitiesOverTime(allFriends, timeIntervalls)
-
+    print('Calculating densities')
     weightedDensities = networkDensitiesOverTime(weightedFriends,
                                                  timeIntervalls)
     weightedDensitiesUniversity = networkDensitiesOverTime(
@@ -349,49 +353,9 @@ if __name__ == "__main__":
                                                     timeIntervalls)
 
     ''' Estimate change between time slices '''
-    differences = estimateTieChangeOverTime(friends, timeIntervalls)
-    print()
-    for i, d in enumerate(differences):
-        print('Average change period (non-university)', i, '/', i+1,
-              ': ', d)
-
-    differencesUniversity = estimateTieChangeOverTime(universityFriends,
-                                                      timeIntervalls)
-    print()
-    for i, d in enumerate(differencesUniversity):
-        print('Average change period (university)', i, '/', i+1,
-              ': ', statistics.mean(d))
-
-    differencesTime = estimateTieChangeOverTime(timeFriends, timeIntervalls)
-    print()
-    for i, d in enumerate(differencesTime):
-        print('Average change period (time)', i, '/', i+1,
-              ': ', statistics.mean(d))
-
-    differencesHybrid = estimateTieChangeOverTime(hybridFriends, timeIntervalls)
-    print()
-    for i, d in enumerate(differencesHybrid):
-        print('Average change period (social)', i, '/', i+1,
-              ': ', statistics.mean(d))
-
-    differencesAll = estimateTieChangeOverTime(allFriends, timeIntervalls)
-    print()
-    for i, d in enumerate(differencesAll):
-        print('Average change period (all)', i, '/', i+1,
-              ': ', statistics.mean(d))
-
-    print()
-    for i, (d, u, t, s, a) in enumerate(zip(densities, densitiesUniversity,
-                                            densitiesTime, densitiesHybrid,
-                                            densitiesAll)):
-        print('Densities period ', i, ': Non-Uni: ', d, ' Uni: ', u, ' Time: ',
-              t, ' Soc: ', s, ' All: ', a)
-
+    weightedDifferencesAll = estimateTieChangeOverTime(weightedAllFriends,
+                                                       timeIntervalls)
     if export:
-        exportNetworks(hybridFriends, timeIntervalls, outputPathSocial)
-        exportNetworks(universityFriends, timeIntervalls, outputPathUniversity)
-        exportNetworks(allFriends, timeIntervalls, outputPathAll)
-
         exportWeightedNetworks(
             weightedHybridFriends, timeIntervalls, outputPathWeighted)
         exportWeightedNetworks(
@@ -400,13 +364,15 @@ if __name__ == "__main__":
         exportWeightedNetworks(
             weightedAllFriends, timeIntervalls, outputPathWeightedAll)
     else:
-        duration = float(inputData.split('/')[-2].replace('_', '.'))
+        duration = inputData.split('/')[-1].replace('_', '.')
+        duration = float(duration.split('.')[-3])
         lines = []
 
-        for i, (den, dif) in enumerate(zip(densitiesAll, differencesAll.values())):
+        for i, (den, dif) in enumerate(zip(weightedDensitiesAll,
+                                           weightedDifferencesAll.values())):
             line = ' '.join(map(str, [i, duration, den, dif, '\n']))
             lines.append(line)
 
-        with open('networkStatistics.ssv', 'a+') as f:
+        with open(outputPath + 'networkStatistics.ssv', 'a+') as f:
             for line in lines:
                 f.write(line)
