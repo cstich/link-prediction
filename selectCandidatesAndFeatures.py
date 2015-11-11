@@ -1,12 +1,13 @@
 from gs import aux
+from gs import dictAux
 from gs import parser
-from gs.dictAux import dd_dict, dd_none, dd_set
+from gs.dictAux import dd_dict, dd_set
 
 from Metrics import UserMetrics
 from Metrics import generate_triangles
 from networksAux import mapSecondsToFriendshipClass
 
-from PersonalizedPageRank import PersonalizedPageRank
+# from PersonalizedPageRank import PersonalizedPageRank
 
 import collections
 import copy
@@ -23,15 +24,18 @@ import sys
 amsterdam = pytz.timezone('Europe/Amsterdam')
 
 
-def generateNetworkFeatures(network, features, networkFunctions, labels):
+def generateNetworkFeatures(network, features, networkFunctions, labels, key):
     for nF, label in zip(networkFunctions, labels):
         for e in nF(network):
-            setNetworkFeatures(features, label, e)
+            setNetworkFeatures(features, label, e, key)
 
 
-def readNetwork(fileObject):
+def readNetwork(fileObject, evaluateKey=None, value=None):
     key = networkFilesPattern.search(fileObject).group(1).split(sep='-')
     key = tuple(map(int, key))
+    if evaluateKey:
+        if not evaluateKey(key, value):
+            return None, None, None
     network = dict()
     nxNetwork = nx.Graph()
     with open(fileObject, 'r') as f:
@@ -46,17 +50,17 @@ def readNetwork(fileObject):
     return key, network, nxNetwork
 
 
-def setNetworkFeatures(features, name, edge):
+def setNetworkFeatures(features, name, edge, key):
     try:
-        features[time][edge[0]][name][edge[1]] = edge[2]
+        features[key][edge[0]][name][edge[1]] = edge[2]
     except (TypeError, KeyError):
-        features[time][edge[0]][name] = collections.defaultdict(float)
-        features[time][edge[0]][name][edge[1]] = edge[2]
+        features[key][edge[0]][name] = collections.defaultdict(float)
+        features[key][edge[0]][name][edge[1]] = edge[2]
     try:
-        features[time][edge[1]][name][edge[0]] = edge[2]
+        features[key][edge[1]][name][edge[0]] = edge[2]
     except (TypeError, KeyError):
-        features[time][edge[1]][name] = collections.defaultdict(float)
-        features[time][edge[1]][name][edge[0]] = edge[2]
+        features[key][edge[1]][name] = collections.defaultdict(float)
+        features[key][edge[1]][name][edge[0]] = edge[2]
 
 
 def findValuesForFeatures(listOfFeatures, features, time, user, peer):
@@ -111,13 +115,30 @@ def binBlues(bluetooths):
     interactionsAtTime = collections.defaultdict(dd_set)
     for user, blues in bluetooths.items():
         for blue in blues:
+            peer = str(blue[0])
+            if peer == user:
+                continue
             # Bin all interactions into 10 minute buckets
             # Consider wider buckets if spatial triadic closure isn't
             # working very well
             time = int(blue[1] / 600) * 600
-            peer = str(blue[0])
+            # Assume interactions are symmetric
             interactionsAtTime[time][user].add(peer)
+            interactionsAtTime[time][peer].add(user)
     return interactionsAtTime
+
+
+def transformKey(key):
+    key = key.split('_')
+    key = tuple(map(int, key))
+    return key
+
+
+def evaluateKey(key, value):
+    if key[1] - key[0] <= value:
+        return False
+    else:
+        return True
 
 
 if __name__ == "__main__":
@@ -152,11 +173,13 @@ if __name__ == "__main__":
     base = base.split('_')[2]
     resultsDirectory = os.path.dirname(inputData)
     locBluesPattern = re.compile(
-        'parsedData_time_'+base+'_localizedBlue_([0-9]+)\.pck')
-    localizedBlues = parser.loadPickles(resultsDirectory, locBluesPattern)
+        'parsedData_time_'+base+'_localizedBlue_([0-9_]+)\.pck')
+    localizedBluesFiles = parser.readFiles(
+        resultsDirectory, locBluesPattern, transformKey=transformKey)
     bluesPattern = re.compile(
-        'parsedData_time_'+base+'_blue_([0-9]+)\.pck')
-    blues = parser.loadPickles(resultsDirectory, bluesPattern)
+        'parsedData_time_'+base+'_blue_([0-9_]+)\.pck')
+    bluesFiles = parser.readFiles(
+        resultsDirectory, bluesPattern, transformKey=transformKey)
 
     stopLocations = rs['stopLocs']
     placeEntropy = Metrics.calculatePlaceEntropy(stopLocations)
@@ -165,35 +188,12 @@ if __name__ == "__main__":
     users = rs['users']
 
     ''' Read networks at different time states '''
-    print('Read network files')
     networkFilesPattern = re.compile('([0-9]+\-[0-9-]+)\.csv')
     networkFiles = parser.readFiles(inputNetworks, networkFilesPattern)
     networks = collections.defaultdict(dd_dict)
     testingNetworks = collections.defaultdict(dd_dict)
-    nxNetworks = collections.defaultdict(nx.Graph)
+    # nxNetworks = collections.defaultdict(nx.Graph)
 
-    '''
-    for f in networkFiles:
-        key = networkFilesPattern.search(f).group(1).split(sep='-')
-        key = tuple(map(int, key))
-        with open(f, 'r') as f:
-            for line in f.readlines():
-                line = line[:-1].split(sep=',')
-                node = line[0]
-                peers = copy.copy(line[1:])
-
-                # if len(peers) > 0: It makes sense to have a sparse
-                # representation the triangles implementation doesn't like it
-                # though
-                peers = dict(zip(peers[0::2], peers[1::2]))
-                # Your training period is longer than your testing period
-                # keep the respective networks seperated
-                if key[1] - key[0] > lengthOfDeltaT:
-                    networks[key][node] = peers
-                else:
-                    testingNetworks[key][node] = peers
-    '''
-    import pdb; pdb.set_trace()  # TRIANGLES BREAKPOINT
     # TODO check the re-factoring
     ''' Generate featues '''
     print('Generate features')
@@ -202,13 +202,25 @@ if __name__ == "__main__":
                         nx.preferential_attachment,
                         nx.resource_allocation_index]
     networkLabels = ['adamicAdar', 'jaccard', 'PA', 'resourceAllocation']
+    progress = 0
 
-    for f in networkFiles: # TODO read only training networks for this
-        key, network, nxNetwork = readNetwork(f)
-        bluesPeriod = blues[key]
+
+    # TODO pair each training file with the fitting prediction file
+    for f in networkFiles:
+        progress += 1
+        print(progress/len(networkFiles))
+        key, network, nxNetwork = readNetwork(f, evaluateKey, lengthOfDeltaT)
+        if key is None:
+            continue
+        bluesFile = bluesFiles[key]
+        with open(bluesFile, 'rb') as f:
+            blues = pickle.load(f)
+        localizedBluesFile = localizedBluesFiles[key]
+        with open(localizedBluesFile, 'rb') as f:
+            localizedBlues = pickle.load(f)
 
         ''' Generate bluetooth bins '''
-        interactionsAtTime = binBlues(bluesPeriod)
+        interactionsAtTime = binBlues(blues)
 
         ''' Generate triangles for all bluetooth bins '''
         triangles = collections.defaultdict(lambda: None)
@@ -218,15 +230,15 @@ if __name__ == "__main__":
         ''' Generate user based features '''
         for user, peers in network.items():
             try:
-                stopLocs = stopLocations[user][time]
+                stopLocs = stopLocations[user][key]
             except KeyError:
                 stopLocs = None
             try:
-                locBlues = localizedBlues[user][time]
+                locBlues = localizedBlues[user]
             except KeyError:
                 locBlues = None
             try:
-                bl = blues[key][user]
+                bl = blues[user]
             except KeyError:
                 bl = None
             um = UserMetrics(user,
@@ -237,13 +249,13 @@ if __name__ == "__main__":
                              interactionsAtTime,
                              triangles,
                              placeEntropy,
-                             time[0], time[1])
+                             key[0], key[1])
             um.generateFeatures()
-            features[time][um.user] = um.metrics
+            features[key][um.user] = um.metrics
 
         generateNetworkFeatures(
-        nxNetworks, features, networkFunctions, networkLabels)
-
+            nxNetwork, features, networkFunctions, networkLabels, key)
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
     ''' Write features to files '''
     listOfFeatures = [

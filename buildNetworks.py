@@ -209,13 +209,16 @@ if __name__ == "__main__":
     base = os.path.basename(inputData)
     base = base.split('_')[2]
     resultsDirectory = os.path.dirname(inputData)
-    transformKey = lambda x: tuple(x.split('_'))
+
+    def transformKey(x):
+        return tuple(map(int, x.split('_')))
+
     locBluesPattern = re.compile(
-        'parsedData_time_'+base+'_localizedBlue_([0-9_]+)\.pck')
+        'parsedData_time_' + base + '_localizedBlue_([0-9_]+)\.pck')
     localizedBlues = parser.loadPickles(
         resultsDirectory, locBluesPattern, transformKey=transformKey)
     bluesPattern = re.compile(
-        'parsedData_time_'+base+'_blue_([0-9_]+)\.pck')
+        'parsedData_time_' + base + '_blue_([0-9_]+)\.pck')
     blues = parser.loadPickles(
         resultsDirectory, bluesPattern, transformKey=transformKey)
 
@@ -230,7 +233,7 @@ if __name__ == "__main__":
     outgoingWeightedUniversityFriends = collections.defaultdict(ddd_int)
 
     for timePeriod, users in localizedBlues.items():
-        for timePeriod, observations in users.items():
+        for user, observations in users.items():
             if len(observations) > 0:
                 for locationIndex, observation in observations.items():
                     con = list(stopLocations[str(user)][timePeriod].values())
@@ -288,12 +291,16 @@ if __name__ == "__main__":
     tempAllFriends = collections.defaultdict(ddd_list)
     numberOfUsers = 0
 
+    begin = timeIntervalls[0]
+    end = timeIntervalls[1] - begin
+
+
     # TODO Fix the user/timePeiod key change
     for timePeriod in blues.keys():
         blue = blues[timePeriod]
-        # print('{:1.4f}'.format(numberOfUsers/len(usersLs)),
-        #     end=' ')
-        # sys.stdout.flush()
+        print('{:1.4f}'.format((timePeriod[1]-begin)/end)),
+             end=' ')
+        sys.stdout.flush()
         for user, observations in blue.items():
             if len(observations) > 0:
                 for b in observations:
@@ -302,12 +309,12 @@ if __name__ == "__main__":
                     if now.hour >= 18 or now.hour <= 9 or now.weekday() > 4:
                         tempFriends[str(user)][timePeriod][b[0]].append(b[1])
         ''' Convert to numpy array to save memory '''
-        timePeriods = tempFriends[str(user)]
+        timePeriods = tempFriends[timePeriod]
         dictAux.castLeaves(timePeriods, np.asarray)
-        timePeriods = tempAllFriends[str(user)]
+        timePeriods = tempAllFriends[timePeriod]
         dictAux.castLeaves(timePeriods, np.asarray)
-        ''' Clear the user once you don't need them anymore '''
-        blues[user] = None
+        ''' Clear the timePeriod once you don't need them anymore '''
+        blues[timePeriod] = None
         numberOfUsers += 1
 
     ''' Create outgoing times from the meetings '''

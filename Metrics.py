@@ -22,8 +22,7 @@ def calculatePlaceEntropy(stopLocs):
         for intervall, RENAMEME in values.items():
             for timeSpent, stopLoc in RENAMEME.items():
                 ts = timeSpent[1] - timeSpent[0]
-                if ts < 0:
-                    import pdb; pdb.set_trace()  # DOMAIN ERROR BREAKPOINT
+                assert ts > 0, 'Time between measurments must be > 0'
                 locationIndex = stopLoc[2]
                 timeSpentAtLocation[locationIndex] += ts
                 timeSpentAtLocationPerUser[locationIndex][user] += ts
@@ -72,8 +71,6 @@ def friendFriends(friendsDict):
     return friendsFriends
 
 
-
-
 def maxMode(ls):
     ''' Returns the mode of a list. If ambigous, return the highest value
     item '''
@@ -92,7 +89,8 @@ class UserMetrics(object):
         self.stopLocs = stopLocs
         self.interactionsAtTime = interactionsAtTime
         self.triangles = triangles
-        self.metrics = collections.defaultdict(lambda: None)
+        self.placeEntropy = placeEntropy
+        self.metrics = collections.defaultdict(dict)
         self.beginTime = beginTime
         self.endTime = endTime
 
@@ -230,7 +228,7 @@ class UserMetrics(object):
         self.metrics['timeSpent'] = timeSpentWithDict
 
         amountOfOtherPeopleAtInteraction = collections.defaultdict(list)
-        for time, interactions in interactionsAtTime.items():
+        for time, interactions in self.interactionsAtTime.items():
             interaction = interactions[self.user]
             for peer in interaction:
                 amountOfOtherPeopleAtInteraction[peer].append(
@@ -245,12 +243,12 @@ class UserMetrics(object):
 
         # Spatial-triadic closure
         t0, t1, t2, t3, t4, t5 = self.triadicClosure()
-        self.metric['triadicClosure_0'] = t0
-        self.metric['triadicClosure_1'] = t1
-        self.metric['triadicClosure_2'] = t2
-        self.metric['triadicClosure_3'] = t3
-        self.metric['triadicClosure_4'] = t4
-        self.metric['triadicClosure_5'] = t5
+        self.metrics['triadicClosure_0'] = t0
+        self.metrics['triadicClosure_1'] = t1
+        self.metrics['triadicClosure_2'] = t2
+        self.metrics['triadicClosure_3'] = t3
+        self.metrics['triadicClosure_4'] = t4
+        self.metrics['triadicClosure_5'] = t5
 
     def getPlaceFeatures(self):
         ''' Create the place features - context, relative importance '''
@@ -277,7 +275,7 @@ class UserMetrics(object):
                             con = 'thirdPlace'
                     typeDict[str(peer)].append(con)
                     for e in bs:
-                        timeTypeDict[str(peer)].append((con, e[1]))
+                        timeTypeDict[str(peer)].append((con, e))
 
         ''' Context features '''
         ''' Count the time spent at each context with each peer '''
@@ -350,7 +348,6 @@ class UserMetrics(object):
         Expects an expanded dictionary of stop locations,
         where {key: (beginTime, endTime), value: (location, label)
         '''
-        import pdb; pdb.set_trace()  # check positivity of timeSpent
         if self.stopLocs is not None:
             d = collections.defaultdict(int)
             for time, sl in self.stopLocs.items():
@@ -393,10 +390,11 @@ class UserMetrics(object):
         triadic5 = collections.defaultdict(int)
         allMeetings = 0
         for time in range(self.beginTime, self.endTime, 600):
-            peers = interactionsAtTime[time][self.user]
+            peers = self.interactionsAtTime[time][self.user]
             ''' Select all triangles with s '''
             triangles = self.triangles[time]
-            trianglesS = [t for t in triangles if self.user in t]
+            if triangles is not None:
+                trianglesS = [t for t in triangles if self.user in t]
             if len(peers) == 0:
                 triadic0 += 1  # Create a defaultdict with
                 # this as its default value
@@ -415,13 +413,14 @@ class UserMetrics(object):
                         else:
                             triadic4[cp] += 1
                     allMeetings += 1
-                for t in trianglesS:
-                    for p in t:
-                        if p != self.user:
-                            triadic5[p] += 1
-                            allMeetings += 1
+                if trianglesS is not None:
+                    for t in trianglesS:
+                        for p in t:
+                            if p != self.user:
+                                triadic5[p] += 1
+                                allMeetings += 1
 
-        triadic0 = collections.defaultdict(triadic0)
+        triadic0 = collections.defaultdict(lambda: triadic0)
         for peer, metings in triadic1.items():
             triadic1[peer] = singleMeetings - triadic2[peer]
         return triadic0, triadic1, triadic2, triadic3, triadic4, triadic5

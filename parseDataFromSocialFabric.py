@@ -5,7 +5,7 @@ from gs import timeAux
 from gs import estimateSignificantLocations as esl
 from gs import partition
 from gs.dictAux import defaultdict_defaultdict_DefaultOrderedDict,\
-    dddd_list, dd_list, DefaultOrderedDict
+    dddd_list, ddd_list, dd_list, DefaultOrderedDict
 from bisect import bisect_left
 from delorean import Delorean
 # from groupStore import dict2group
@@ -68,7 +68,6 @@ if __name__ == "__main__":
     ''' Read all sig. locations from the saved pickles '''
     print('reading sig. locations')
     pattern = re.compile('sig_locations_user_([0-9]+)\.pck')
-    # pattern = re.compile('sig_locations_user_([0-9])\.pck')
     stopLocs = parser.loadPickles(inputLocations, pattern)
 
     for user, values in stopLocs.items():
@@ -96,12 +95,11 @@ if __name__ == "__main__":
     ''' Read the geo contexts from the saved pickles '''
     print('reading geographic contexts')
     pattern = re.compile('geographic_context_sig_loc_user_([0-9]+)\.pck')
-    # pattern = re.compile('geographic_context_sig_loc_user_([0-9])\.pck')
     context = parser.loadPickles(inputContext, pattern)
 
     ''' Read in the bluetooth filepaths '''
     print('reading bluetooths')
-    pattern = re.compile('bluetooth_([0-9]+)')
+    pattern = re.compile('bluetooth_([0-9]+)$')
     listOfBTFiles = parser.readFiles(inputBT, pattern)
     users = parser.inferUsers(inputLocations, pattern, users=users)
 
@@ -211,6 +209,7 @@ if __name__ == "__main__":
                 ls = np.asarray([(b.peer, b.time) for b in meetings])
                 blues[time][str(node.name)] = ls
 
+            tempUserBlues = collections.defaultdict(ddd_list)
             ''' Match bluetooth to locations '''
             for timePeriod, locations in stopLocations[str(node.name)].items():
                 if locations:
@@ -219,19 +218,18 @@ if __name__ == "__main__":
                         posSL = matchBTToSigLoc(bt, ksLower, ksUpper)
                         if posSL:
                             peer = bt.peer
-                            localizedBlues[timePeriod][str(
-                                node.name)][posSL][peer].append(
-                                    bt.time)
+                            tempUserBlues[timePeriod][posSL][peer].append(
+                                bt.time)
 
             ''' Convert the lists of matched bluetooths to numpy arrays '''
-            timePeriods = localizedBlues.keys()
-            for time in timePeriods:
-                for posSl, peers in localizedBlues[time][str(node.name)].items():
+            for timePeriod, posSls in tempUserBlues.items():
+                for posSl, peers in posSls.items():
                     for peer, bluetooths in peers.items():
                         ls = np.asarray(bluetooths)
-                        localizedBlues[str(node.name)][timePeriod][posSL][peer] = ls
+                        localizedBlues[timePeriod][str(
+                            node.name)][posSl][peer] = ls
 
-
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
     ''' Feature extraction '''
     print('dumping file')
     filename = str(outputPath) + 'parsedData_time_' +\
