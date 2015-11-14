@@ -1,13 +1,10 @@
 from gs import aux
-from gs import dictAux
 from gs import parser
 from gs.dictAux import dd_dict, dd_set
 
 from Metrics import UserMetrics
 from Metrics import generate_triangles
 from networksAux import mapSecondsToFriendshipClass
-
-# from PersonalizedPageRank import PersonalizedPageRank
 
 import collections
 import copy
@@ -24,13 +21,37 @@ import sys
 amsterdam = pytz.timezone('Europe/Amsterdam')
 
 
-def generateNetworkFeatures(network, features, networkFunctions, labels, key):
+def generateListOfFeatures():
+    ls = [
+        'metLast',
+        'timeSpent',
+        'numberOfPeople',
+        'timeSpentAtHomeWith',
+        'timeSpentAtUniversityWith',
+        'timeSpentAtThirdPlaceWith',
+        'timeSpentAtOtherPlaceWith',
+        'relativeImportance',
+        'adamicAdar',
+        'jaccard',
+        'PA',
+        'placeEntropy',
+        'propScores',
+        'resourceAllocation']
+    metAtHourOfTheWeek = generateFeatureVectorStrings('metAtHourOfTheWeek',
+                                                      range(196))
+    ls.extend(metAtHourOfTheWeek)
+    triadicClosure = generateFeatureVectorStrings('triadicClosure', range(6))
+    ls.extend(triadicClosure)
+    return ls
+
+
+def generateNetworkFeatures(network, features, networkFunctions, labels):
     for nF, label in zip(networkFunctions, labels):
         for e in nF(network):
-            setNetworkFeatures(features, label, e, key)
+            setNetworkFeatures(features, label, e)
 
 
-def readNetwork(fileObject, evaluateKey=None, value=None):
+def readNetwork(fileObject, nxGraph=None, evaluateKey=None, value=None):
     key = networkFilesPattern.search(fileObject).group(1).split(sep='-')
     key = tuple(map(int, key))
     if evaluateKey:
@@ -45,34 +66,36 @@ def readNetwork(fileObject, evaluateKey=None, value=None):
             peers = copy.copy(line[1:])
             peers = dict(zip(peers[0::2], peers[1::2]))
             network[node] = peers
-            for peer, strength in peers.items():
-                nxNetwork.add_edge(node, peer, weight=strength)
-    return key, network, nxNetwork
+            if nxGraph:
+                for peer, strength in peers.items():
+                    nxNetwork.add_edge(node, peer, weight=strength)
+    if nxGraph:
+        return key, network, nxNetwork
+    else:
+        return key, network
 
 
-def setNetworkFeatures(features, name, edge, key):
+def setNetworkFeatures(features, name, edge):
     try:
-        features[key][edge[0]][name][edge[1]] = edge[2]
+        features[edge[0]][name][edge[1]] = edge[2]
     except (TypeError, KeyError):
-        features[key][edge[0]][name] = collections.defaultdict(float)
-        features[key][edge[0]][name][edge[1]] = edge[2]
+        features[edge[0]][name] = collections.defaultdict(float)
+        features[edge[0]][name][edge[1]] = edge[2]
     try:
-        features[key][edge[1]][name][edge[0]] = edge[2]
+        features[edge[1]][name][edge[0]] = edge[2]
     except (TypeError, KeyError):
-        features[key][edge[1]][name] = collections.defaultdict(float)
-        features[key][edge[1]][name][edge[0]] = edge[2]
+        features[edge[1]][name] = collections.defaultdict(float)
+        features[edge[1]][name][edge[0]] = edge[2]
 
 
-def findValuesForFeatures(listOfFeatures, features, time, user, peer):
-    valuesFeature = []
+def findValuesForFeatures(listOfFeatures, features, user, peer):
+    result = []
     for f in listOfFeatures:
-        # Split into training and test set
         try:
-            valuesFeature.append(
-                features[time][user][f][peer])
+            result.append(features[user][f][peer])
         except (TypeError, KeyError):
-            valuesFeature.append(0)
-    return valuesFeature
+            result.append(0)
+    return result
 
 
 def generateFeatureVectorStrings(s, iterable, sep='_'):
@@ -86,7 +109,7 @@ def generateFeatureVectorStrings(s, iterable, sep='_'):
 def generateTestingTimeIntervalls(trainingTimeIntervalls, length):
     result = list()
     for time in trainingTimeIntervalls:
-        intervall = tuple(time(1), time(1)+length)
+        intervall = tuple([time[1], time[1]+length])
         result.append(intervall)
     return result
 
@@ -128,10 +151,12 @@ def binBlues(bluetooths):
     return interactionsAtTime
 
 
-def transformKey(key):
-    key = key.split('_')
-    key = tuple(map(int, key))
-    return key
+def generateTransformKey(split='-'):
+    def transformKey(key):
+        key = key.split(split)
+        key = tuple(map(int, key))
+        return key
+    return transformKey
 
 
 def evaluateKey(key, value):
@@ -172,6 +197,7 @@ if __name__ == "__main__":
     base = os.path.basename(inputData)
     base = base.split('_')[2]
     resultsDirectory = os.path.dirname(inputData)
+    transformKey = generateTransformKey('_')
     locBluesPattern = re.compile(
         'parsedData_time_'+base+'_localizedBlue_([0-9_]+)\.pck')
     localizedBluesFiles = parser.readFiles(
@@ -189,7 +215,10 @@ if __name__ == "__main__":
 
     ''' Read networks at different time states '''
     networkFilesPattern = re.compile('([0-9]+\-[0-9-]+)\.csv')
-    networkFiles = parser.readFiles(inputNetworks, networkFilesPattern)
+    transformKey = generateTransformKey('-')
+    networkFiles = parser.readFiles(
+        inputNetworks, networkFilesPattern, generateKey=True,
+        transformKey=transformKey)
     networks = collections.defaultdict(dd_dict)
     testingNetworks = collections.defaultdict(dd_dict)
     # nxNetworks = collections.defaultdict(nx.Graph)
@@ -203,15 +232,33 @@ if __name__ == "__main__":
                         nx.resource_allocation_index]
     networkLabels = ['adamicAdar', 'jaccard', 'PA', 'resourceAllocation']
     progress = 0
+    listOfFeatures = generateListOfFeatures()
+    ''' Use the same train and test sample for all timeframes
+    aka create the samples of test users before you output your
+    data '''
+    # Create n-folded training and verification sets
+    # 1) Shuffle the list of users
+    # 2) Split the random list of users into n-sublists
+    # where each sublist represents a set of users that are
+    # used for testing
+    testUsers = np.random.choice(list(users), len(users), replace=False)
+    testUsers = aux.chunkify(testUsers, int(len(users)/lengthOfTestUsers))
+    classes = mapSecondsToFriendshipClass
+    testingIntervalls = generateTestingTimeIntervalls(timeIntervalls,
+                                                      lengthOfDeltaT)
+    trainingTestingIntervalls = zip(timeIntervalls,
+                                    testingIntervalls)
 
-
-    # TODO pair each training file with the fitting prediction file
-    for f in networkFiles:
+    # TODO Parallize this
+    for trainingIntervall, testingIntervall in trainingTestingIntervalls:
         progress += 1
         print(progress/len(networkFiles))
-        key, network, nxNetwork = readNetwork(f, evaluateKey, lengthOfDeltaT)
-        if key is None:
-            continue
+        print('Working on: ', trainingIntervall, '/', testingIntervall)
+        trainingNetworkFile = networkFiles[trainingIntervall]
+        testingNetworkFile = networkFiles[testingIntervall]
+        key, network, nxNetwork = readNetwork(
+            trainingNetworkFile, nxGraph=True)
+        testingKey, testingNetwork = readNetwork(testingNetworkFile)
         bluesFile = bluesFiles[key]
         with open(bluesFile, 'rb') as f:
             blues = pickle.load(f)
@@ -251,59 +298,12 @@ if __name__ == "__main__":
                              placeEntropy,
                              key[0], key[1])
             um.generateFeatures()
-            features[key][um.user] = um.metrics
+            features[um.user] = um.metrics
 
         generateNetworkFeatures(
-            nxNetwork, features, networkFunctions, networkLabels, key)
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            nxNetwork, features, networkFunctions, networkLabels)
 
-    ''' Write features to files '''
-    listOfFeatures = [
-        'metAtHourOfTheWeek',
-        'metAtDayOfTheWeek',
-        'metAtHourOfTheDay',
-        'metLast',
-        'timeSpent',
-        'numberOfPeople',
-        'timeSpentAtHomeWith',
-        'timeSpentAtUniversityWith',
-        'timeSpentAtThirdPlaceWith',
-        'timeSpentAtOtherPlaceWith',
-        'relativeImportance',
-        'adamicAdar',
-        'jaccard',
-        'PA',
-        'placeEntropy',
-        'propScores',
-        'resourceAllocation',
-        'commonNeighborsCommunity',
-        'ressourceAllocationCommunity',
-        'withinInterCluster']
-    metAtHourOfTheWeek = generateFeatureVectorStrings('metAtHourOfTheWeek',
-                                                      range(196))
-    listOfFeatures.append(metAtHourOfTheWeek)
-    triadicClosure = generateFeatureVectorStrings('triadicClosure', range(6))
-    listOfFeatures.append(triadicClosure)
-
-    ''' Use the same train and test sample for all timeframes
-    aka create the samples of test users before you output your
-    data '''
-    # Create n-folded training and verification sets
-    # 1) Shuffle the list of users
-    # 2) Split the random list of users into n-sublists
-    # where each sublist represents a set of users that are
-    # used for testing
-    testUsers = np.random.choice(users, len(users), replace=False)
-    testUsers = aux.chunkify(testUsers, int(len(users)/lengthOfTestUsers))
-
-    classes = mapSecondsToFriendshipClass
-
-    testingIntervalls = generateTestingTimeIntervalls(timeIntervalls,
-                                                      lengthOfDeltaT)
-    trainingTestingIntervalls = zip(timeIntervalls,
-                                    testingIntervalls)
-    for trainingIntervall, testingIntervall in trainingTestingIntervalls:
-        print('Working on: ', trainingIntervall, '/', testingIntervall)
+        ''' Save features to file '''
         for j, currentTestSet in enumerate(testUsers):
             test = []
             train = []
@@ -311,21 +311,20 @@ if __name__ == "__main__":
                 for peer in users:
                     if user != peer:
                         line = []
-                        truth = findTie(testingNetworks[testingIntervall],
+                        truth = findTie(testingNetwork,
                                         user, peer, classes)
-                        friends = findTie(networks[trainingIntervall], user,
+                        friends = findTie(network, user,
                                           peer, classes)
                         line.extend([truth, user, peer, friends])
                         # Iterate through all the features
                         valuesFeatures = findValuesForFeatures(
-                            listOfFeatures, features, trainingIntervall,
+                            listOfFeatures, features,
                             user, peer)
                         line.extend(valuesFeatures)
                         if user in currentTestSet:
                             test.append(line)
                         else:
                             train.append(line)
-
             directory = outputPath + str(testingIntervall[0])
             if not os.path.exists(directory):
                     os.makedirs(directory)

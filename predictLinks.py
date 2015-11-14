@@ -88,8 +88,8 @@ class RandomForestLinkPrediction(object):
         ########################################
         # STEP 1: Read in the training examples.
         ########################################
-        truths = []  # A truth is 1 (for a known true edge) or 0 (for a false
-        # edge).
+        truths = []  # A truth is an int (for a known true edge) or
+        # 0 (for a false edge).
         training_examples = []  # Each training example is an array of features
         with open(TRAINING_SET_WITH_FEATURES_FILENAME, 'r') as csvF:
             csvReader = csv.DictReader(csvF, delimiter=',')

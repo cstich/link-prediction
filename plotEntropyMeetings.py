@@ -1,18 +1,22 @@
-from geogps import Aux
-from geogps import Parser
-from geogps.DictAux import dd_list, ddd_set
-from geogps import TimeAux
+from gs import aux
+from gs import parser
+from gs.dictAux import dd_list
 
 import collections
-import matplotlib as mp
-mp.use('agg')
 import math
 import numpy as np
 import os
+import pickle
 import pytz
 import re
 import statistics
 import sys
+''' Plotting related '''
+import matplotlib as mp
+mp.use('agg') # Workaround bug in conda
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set(color_codes=True)
 
 amsterdam = pytz.timezone('Europe/Amsterdam')
 
@@ -55,33 +59,47 @@ if __name__ == "__main__":
         sys.exit(-1)
 
     inputData = sys.argv[1]
-    outptPath = sys.argv[2]
+    outputPath = sys.argv[2]
     scriptDir = os.path.dirname(os.path.abspath(__file__))
 
-    inputFilePattern = re.compile('parsedData[\-\_a-zA-Z0-9]*\.pck')
-    rs = Parser.loadPickles(inputData, inputFilePattern,
-                            matchUser=False)[0]
+    print('loadingData')
+    with open(inputData, 'rb') as f:
+        rs = pickle.load(f)
 
-    localizedBlues = rs['localizedBlues']
+    base = os.path.basename(inputData)
+    base = base.split('_')[2]
+    resultsDirectory = os.path.dirname(inputData)
+
+    def transformKey(x):
+        return tuple(map(int, x.split('_')))
+
+    locBluesPattern = re.compile(
+        'parsedData_time_' + base + '_localizedBlue_([0-9_]+)\.pck')
+    localizedBlues = parser.loadPickles(
+        resultsDirectory, locBluesPattern, transformKey=transformKey)
+    bluesPattern = re.compile(
+        'parsedData_time_' + base + '_blue_([0-9_]+)\.pck')
+    blues = parser.loadPickles(
+        resultsDirectory, bluesPattern, transformKey=transformKey)
     stopLocations = rs['stopLocs']
-    blues = rs['blues']
     timeIntervalls = list(rs['intervalls'])  # Are ordered in time
     slidingTimeIntervalls = list(rs['slidingIntervalls'])
-    users = list(map(str, list(blues.keys())))
 
+    # TODO Change around timePeriod and user key
     timeSpentWith = collections.defaultdict(dd_list)
-    for user in users:
-        for timeIntervall, blue in blues[user].items():
+    for timeIntervall, users in blues.items():
+        for user, blue in users.items():
             for b in blue:
-                timeSpentWith[user][str(b.peer)].append(b.time)
+                timeSpentWith[user][str(b[0])].append(b[1])
 
+    users = rs['users']
     lengthOfInteractions = list()
     peers = list()
     for user, data in timeSpentWith.items():
         for peer, blues in data.items():
                 currentInteraction = 0
                 beginTime = blues[0]
-                for i, v in enumerate(Aux.difference(blues)):
+                for i, v in enumerate(aux.difference(blues)):
                     if v < 601:
                         currentInteraction += v
                         endTime = int(blues[i] / 600) * 600
@@ -97,10 +115,34 @@ if __name__ == "__main__":
                 peers.append((user, peer, currentInteraction))
 
     lengthOfInteractions = np.asarray(lengthOfInteractions)
+
+    ''' Plot the distribution '''
+    f, ax = plt.subplots(figsize=(14, 7))
+    ax = sns.distplot(lengthOfInteractions)
+    plt.savefig(outputPath+'lenght_of_interactions.png',
+                bbox_inches='tight')
+    plt.close()
+
     q0 = np.percentile(lengthOfInteractions, 0)
     q1 = np.percentile(lengthOfInteractions, 25)
+    q2 = np.percentile(lengthOfInteractions, 50)
     q3 = np.percentile(lengthOfInteractions, 75)
-    q4 = np.percentile(lengthOfInteractions, 100)
+    q4 = np.percentile(lengthOfInteractions, 80)
+    q5 = np.percentile(lengthOfInteractions, 85)
+    q6 = np.percentile(lengthOfInteractions, 90)
+    q7 = np.percentile(lengthOfInteractions, 95)
+    q8 = np.percentile(lengthOfInteractions, 100)
+    print('quartils')
+    print(q0, ' ', q1, ' ', q2, ' ', q3, ' ', q4, ' ', q5, ' ', q6,
+          ' ', q7, ' ', q8)
+
+    print('quantils of the counter object')
+    distributionOfValues = list(collections.Counter(lengthOfInteractions).keys())
+    qv0 = np.percentile(distributionOfValues, 0)
+    qv1 = np.percentile(distributionOfValues, 25)
+    qv3 = np.percentile(distributionOfValues, 75)
+    qv4 = np.percentile(distributionOfValues, 100)
+    print(qv0, ' ', qv1, ' ', qv3, ' ', qv4)
 
     ''' Build list of interactions classified into the three quartil ranges '''
     networkQ1 = collections.defaultdict(list)
@@ -126,8 +168,6 @@ if __name__ == "__main__":
     for user, peers in networkQ3.items():
         entropyQ3.append(calculateEntropy(peers))
 
-    print('quartils')
-    print(q0, ' ', q1, ' ', q3, ' ', q4)
     print('entropy')
     print(statistics.mean(entropyQ1), ' ', statistics.mean(entropyIqr),
           ' ', statistics.mean(entropyQ3))

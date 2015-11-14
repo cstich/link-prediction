@@ -127,6 +127,7 @@ if __name__ == "__main__":
     socialFeatures.extend([
         'spatialTriadicClosure',
         'numberOfPeople'])
+
     # TODO Update features
     placeFeatures = []
     placeFeatures.extend(copy.copy(baseFeatures))

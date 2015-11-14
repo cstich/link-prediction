@@ -1,3 +1,6 @@
+# TODO Investigate how some exported networks don't have any time information
+# for some ties
+
 from gs import aux
 from gs import dictAux
 from gs import parser
@@ -146,9 +149,11 @@ def exportWeightedNetworks(network, timeIntervalls, outputPath):
         for user in network.keys():
             line = [user]
             for peer, value in network[user][key].items():
+                assert isinstance(value, int) or isinstance(value, np.int64)
                 line.extend([str(peer), str(value)])
-            line = ','.join(line) + '\n'
-            lines.append(line)
+            if len(line) > 1:
+                line = ','.join(line) + '\n'
+                lines.append(line)
         with open(outputPath + filename, 'w') as f:
             for line in lines:
                 f.write(line)
@@ -187,7 +192,7 @@ if __name__ == "__main__":
     ''' Set memory limit '''
     rsrc = resource.RLIMIT_AS
     soft, hard = resource.getrlimit(rsrc)
-    resource.setrlimit(rsrc, (1024*1024*1024*30, hard))  # limit is in bytes
+    resource.setrlimit(rsrc, (1024*1024*1024*26, hard))  # limit is in bytes
 
     ''' Load data '''
     inputData = sys.argv[1]
@@ -252,7 +257,7 @@ if __name__ == "__main__":
                         meetings = sum(meetings)
                         if con != 'university' and con != 'University':
                             outgoingWeightedFriends[
-                                str(user)][timePeriod][peer] += meetings
+                                str(user)][timePeriod][str(peer)] += meetings
 
                         if meetingsForUniversity:
                             meetingsForUniversity = aux.filterList(
@@ -261,7 +266,7 @@ if __name__ == "__main__":
                         meetingsForUniversity = sum(meetingsForUniversity)
                         if con == 'university' or con == 'University':
                             outgoingWeightedUniversityFriends[
-                                str(user)][timePeriod][peer] += meetings
+                                str(user)][timePeriod][str(peer)] += meetings
 
     ''' Clear unused variables as soon as you don't need them anymore '''
     print('clearing stopLocations')
@@ -286,33 +291,37 @@ if __name__ == "__main__":
     outgoingWeightedUniversityFriends = None
 
     ''' Build network based on the time people have met '''
-    print('Inferring time friends')
+    # print('Inferring time friends')
     tempFriends = collections.defaultdict(ddd_list)
     tempAllFriends = collections.defaultdict(ddd_list)
     numberOfUsers = 0
 
-    begin = timeIntervalls[0]
-    end = timeIntervalls[1] - begin
+    begin = timeIntervalls[0][0]
+    end = timeIntervalls[1][1]
 
-
-    # TODO Fix the user/timePeiod key change
     for timePeriod in blues.keys():
+        temporaryTempFriends = collections.defaultdict(dd_list)
+        temporaryTempAllFriends = collections.defaultdict(dd_list)
         blue = blues[timePeriod]
-        print('{:1.4f}'.format((timePeriod[1]-begin)/end)),
-             end=' ')
+        print('{:1.4f}'.format((timePeriod[1])/end), end=' ')
         sys.stdout.flush()
         for user, observations in blue.items():
             if len(observations) > 0:
                 for b in observations:
                     now = timeAux.epochToLocalTime(b[1], amsterdam)
-                    tempAllFriends[str(user)][timePeriod][b[0]].append(b[1])
+                    temporaryTempAllFriends[str(user)][str(b[0])].append(b[1])
                     if now.hour >= 18 or now.hour <= 9 or now.weekday() > 4:
-                        tempFriends[str(user)][timePeriod][b[0]].append(b[1])
+                        temporaryTempFriends[str(user)][str(b[0])].append(b[1])
+
         ''' Convert to numpy array to save memory '''
-        timePeriods = tempFriends[timePeriod]
-        dictAux.castLeaves(timePeriods, np.asarray)
-        timePeriods = tempAllFriends[timePeriod]
-        dictAux.castLeaves(timePeriods, np.asarray)
+        dictAux.castLeaves(temporaryTempFriends, np.asarray)
+        dictAux.castLeaves(temporaryTempAllFriends, np.asarray)
+        for user, peers in temporaryTempFriends.items():
+            for peer, value in peers.items():
+                tempFriends[user][timePeriod][peer] = value
+        for user, peers in temporaryTempAllFriends.items():
+            for peer, value in peers.items():
+                tempAllFriends[user][timePeriod][peer] = value
         ''' Clear the timePeriod once you don't need them anymore '''
         blues[timePeriod] = None
         numberOfUsers += 1

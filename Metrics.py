@@ -30,9 +30,11 @@ def calculatePlaceEntropy(stopLocs):
     for place, timeSpent in timeSpentAtLocation.items():
         sumOfLogs = sum([x * math.log(x, 2)
                          for x in timeSpentAtLocationPerUser[place].values()])
-        placeEntropy[place] = math.log(
+        platialPlaceEntropy = math.log(
             timeSpentAtLocation[place], 2
         ) - 1/timeSpentAtLocation[place] * sumOfLogs
+        # print(place, '/', platialPlaceEntropy)
+        placeEntropy[place] = platialPlaceEntropy
     return placeEntropy
 
 
@@ -419,8 +421,8 @@ class UserMetrics(object):
                             if p != self.user:
                                 triadic5[p] += 1
                                 allMeetings += 1
-
-        triadic0 = collections.defaultdict(lambda: triadic0)
+        x = triadic0
+        triadic0 = collections.defaultdict(lambda: x)
         for peer, metings in triadic1.items():
             triadic1[peer] = singleMeetings - triadic2[peer]
         return triadic0, triadic1, triadic2, triadic3, triadic4, triadic5
