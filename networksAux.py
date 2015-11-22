@@ -37,3 +37,7 @@ def mapSecondsToFriendshipClass(seconds):
         return 4
     else:
         raise ValueError
+
+
+def classesSet():
+    return set([0, 1, 2, 3, 4])

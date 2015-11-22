@@ -1,5 +1,5 @@
 from sklearn.metrics import accuracy_score, precision_score, recall_score
-from geogps.DictAux import dd_int
+from gs.dictAux import dd_int
 
 import collections
 import copy
@@ -16,68 +16,68 @@ class NullModel(object):
     dissolves ties between nodes to match the amount of change for each
     timestep '''
 
-    def __init__(self, networkT0Filename, networkT1Filename,
-                 weighted):
-        networkT0 = collections.defaultdict(list)
+    def __init__(self, networkT0Filename, networkT1Filename, classes, nodes):
+        # we need to read in the full network and not its sparse representation
+        networkT0 = collections.defaultdict(set)
         tempNetwork = networksAux.constructNetworkFromFile(networkT0Filename,
-                                                           weighted)
-        classes = set()
-        nodes = set()
-
+                                                           True)
+        examples = collections.defaultdict(dd_int)
         for node, peers in tempNetwork.items():
-            nodes.add(node)
-            if weighted:
-                for peer, c in peers.items():
-                    friendshipClass = networksAux.mapSecondsToFriendshipClass(c)
-                    classes.add(friendshipClass)
-                    nodes.add(peer)
-                    if friendshipClass != 0:
-                        networkT0[friendshipClass].append((node, peer))
-            else:
-                classes.add(1)
-                for peer in peers:
-                    nodes.add(peer)
-                    networkT0[1].append((node, peer))
+            for peer, c in peers.items():
+                friendshipClass = networksAux.mapSecondsToFriendshipClass(c)
+                networkT0[friendshipClass].add(frozenset((node, peer)))
+                examples[node][peer] = friendshipClass
+                examples[peer][node] = friendshipClass
 
-        networkT1 = collections.defaultdict(list)
+        networkT0 = self.__addSparseTies__(networkT0, nodes)
+
+        networkT1 = collections.defaultdict(set)
         tempNetwork = networksAux.constructNetworkFromFile(networkT1Filename,
-                                                           weighted)
-        actuals = collections.defaultdict(dd_int)
+                                                           True)
 
+        actuals = collections.defaultdict(dd_int)
         for node, peers in tempNetwork.items():
             nodes.add(node)
-            if weighted:
-                for peer, c in peers.items():
-                    friendshipClass = networksAux.mapSecondsToFriendshipClass(c)
-                    classes.add(friendshipClass)
-                    nodes.add(peer)
-                    if friendshipClass != 0:
-                        networkT1[friendshipClass].append((node, peer))
-                        actuals[node][peer] = friendshipClass
-            else:
-                classes.add(1)
-                for peer in peers:
-                    nodes.add(peer)
-                    networkT1[1].append((node, peer))
-                    actuals[node][peer] = 1
+            for peer, c in peers.items():
+                friendshipClass = networksAux.mapSecondsToFriendshipClass(c)
+                networkT1[friendshipClass].add(frozenset((node, peer)))
+                actuals[node][peer] = friendshipClass
+                actuals[peer][node] = friendshipClass
+
+        networkT1 = self.__addSparseTies__(networkT1, nodes)
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
         self.networkT0 = networkT0
         self.networkT1 = networkT1
         self.classes = sorted(list(classes))
-        self.nodes = list(nodes)
+        self.nodes = list(nodes) # Nodes have to be ordered for the alignment
+        # of stringActuals and the prediction
+        self.examples = examples
+        self.stringExamples = self.createString(examples)
         self.actuals = actuals
         self.stringActuals = self.createString(actuals)
         self.truths = pl.createTruthArray(self.stringActuals, self.classes)
 
-    def predictions(self):
-        predictions = collections.defaultdict(dd_int)
-        exclusion = []
+    def __addSparseTies__(self, network, nodes):
+        ties = set()
+        [ties.add(e) for s in network.values() for e in s]
+        for node in nodes:
+            for peer in nodes:
+                if frozenset((node, peer)) not in ties and peer != node:
+                    network[0].add(frozenset((node, peer)))
+        return network
+
+    def prediction(self, nonTie=0):
+        prediction = collections.defaultdict(dd_int)
+        exclusion = set()
         classes = copy.deepcopy(self.classes)
 
         if len(classes) > 1:
             random.shuffle(classes)
 
         for c in classes:
+            if c == nonTie:
+                continue
             oldTies = set(self.networkT0[c])
             newTies = set(self.networkT1[c])
             createdTies = newTies.difference(oldTies)
@@ -86,27 +86,72 @@ class NullModel(object):
             # Add the newly formed ties
             candidates = self.selectCandidates(
                 self.nodes, len(createdTies), exclusion)
-            for node, peer in candidates:
-                predictions[node][peer] = c
-                predictions[peer][node] = c
-                exclusion.append((node, peer))
-                exclusion.append((peer, node))
+
+            for s in candidates:
+                s = set(s)
+                node = s.pop()
+                peer = s.pop()
+                assert len(s) == 0
+                prediction[node][peer] = c
+                prediction[peer][node] = c
+                exclusion.add(frozenset((node, peer)))
                 # A tie cannot have two types of classes
 
-            # Remove the dissovled ties
-            toRemove = self.selectCandidates(
+            # Remove the dissolved ties
+            toRemove = self.selectTies(
                 oldTies, len(dissolvedTies), [])
             remainingTies = oldTies.difference(toRemove)
-            for node, peer in remainingTies:
-                predictions[node][peer] = c
-                predictions[peer][node] = c
-        return predictions
+            for s in remainingTies:
+                s = set(s)
+                node = s.pop()
+                peer = s.pop()
+                assert len(s) == 0
+                prediction[node][peer] = c
+                prediction[peer][node] = c
+                exclusion.add(frozenset((node, peer)))
+                # A tie cannot have two types of classes
+        return prediction
 
-    def createPredictions(self, n):
+    def predictions(self, n):
         predictions = list()
         for i in range(n):
-            predictions.append(self.createString(self.predictions()))
+            predictions.append(self.createString(self.prediction()))
         return predictions
+
+    def probabilities(self):
+        p = collections.defaultdict(dict)
+        # dictionary in the format d[condition][probability]
+        # for example d[1][0] given class 1 the probability for 0 is x
+        for c in self.classes:
+            oldTies = self.networkT0[c]
+            # newTies = self.networkT1[c]
+            # createdTies = newTies.difference(oldTies)
+            # dissolvedTies = oldTies.difference(newTies)
+            # p[c][c] = 1 - len(createdTies)/len(oldTies)
+            for d in self.classes:
+                newlyFormedInClass = self.networkT1[d]
+                intersection = oldTies.intersection(newlyFormedInClass)
+                p[c][d] = len(intersection)
+        return p
+
+    def probabilityArray(self, p):
+        probs = dict()
+        marginal = dict()
+        for condition, probabilities in p.items():
+            marginal = sum(probabilities.values())
+            row = [probabilities[c]/marginal if marginal != 0
+                   else 1/len(probabilities.values())
+                   for c in self.classes]
+            assert sum(row) == 1
+            probs[condition] = np.asarray(row)
+
+        result = list()
+        for e in self.stringExamples:
+            row = probs[e]
+            result.append(row)
+
+        result = np.asarray(result)
+        return result
 
     def predictionsToProbability(self, predictions):
         N = len(predictions)
@@ -122,6 +167,7 @@ class NullModel(object):
 
     def createString(self, dictionary):
         ls = list()
+        assert isinstance(self.nodes, list)
         for node in self.nodes:
             for peer in self.nodes:
                 if peer != node:
@@ -149,23 +195,30 @@ class NullModel(object):
     def selectCandidates(self, population, n, exclusion):
         ''' Randomly sample from the population of nodes a tie.
         Excludes self-loops.
-        @Return: A tie in the format (node, peer)
         '''
         if len(population) == 0:
-            return []
+            return list()
         else:
-            candidates = []
+            candidates = list()
             while len(candidates) < n:
-                try:
-                    node, peer = random.sample(population, 1)[0]
-                except ValueError:
-                    node = random.sample(population, 1)[0]
-                    peer = random.sample(population, 1)[0]
+                node, peer = random.sample(population, 2)
                 if node != peer:
-                    candidate = (node, peer)
-                    if candidate not in exclusion:
-                        candidates.append(candidate)
-                    candidate = (peer, node)
-                    if candidate not in exclusion:
+                    candidate = frozenset((node, peer))
+                    if candidate not in candidates and candidate not in exclusion:
                         candidates.append(candidate)
             return candidates
+
+    def selectTies(self, ties, n, exclusion):
+        ''' Randomly sample from the population of ties a tie.
+        Excludes self-loops.
+        '''
+        if len(ties) == 0:
+            return set()
+        else:
+            result = set()
+            while len(result) < n:
+                tie = random.sample(ties, 1)[0]
+                assert len(tie) == 2
+                if tie not in result and tie not in exclusion:
+                    result.add(frozenset(tie))
+            return result

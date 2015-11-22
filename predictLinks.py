@@ -1,10 +1,10 @@
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import average_precision_score, roc_curve, auc, accuracy_score,\
-    precision_score, recall_score, precision_recall_curve
+from sklearn.metrics import average_precision_score, roc_curve, auc,\
+    accuracy_score, precision_score, recall_score, precision_recall_curve
 
 import collections
-import csv
 import numpy as np
+
 
 def createTruthArray(actuals, classes):
     ar = np.zeros([len(actuals), len(classes)])
@@ -20,12 +20,22 @@ def roc(truths, probabilities, classes):
         fpr = dict()
         tpr = dict()
         roc_auc = dict()
+        validClasses = 0
         for c in classes:
-            fpr[c], tpr[c], _ = roc_curve(truths[:, c],
+            currentTruths = truths[:, c]
+            fpr[c], tpr[c], _ = roc_curve(currentTruths,
                                           probabilities[:, c])
-            roc_auc[c] = auc(fpr[c], tpr[c])
+            try:
+                roc_auc[c] = auc(fpr[c], tpr[c])
+                validClasses += 1
+            except ValueError as e:
+                if str(e) == "Input contains NaN, infinity or a value too large for dtype('float64').":
+                    roc_auc[c] = np.nan
+                else:
+                    raise e
 
-        roc_auc['macro'] = sum(roc_auc.values())/len(classes)
+        roc_aucValues = np.nan_to_num(list(roc_auc.values()))
+        roc_auc['macro'] = sum(roc_aucValues)/validClasses
         # Compute micro-average ROC curve and ROC area
         fpr["micro"], tpr["micro"], _ = roc_curve(truths.ravel(),
                                                   probabilities.ravel())
@@ -38,13 +48,22 @@ def pr(truths, probabilities, classes):
     precision = dict()
     recall = dict()
     pr_auc = dict()
+    validClasses = 0
     for c in classes:
         precision[c], recall[c], _ = precision_recall_curve(
             truths[:, c], probabilities[:, c])
-        pr_auc[c] = average_precision_score(
-            truths[:, c], probabilities[:, c])
+        try:
+            pr_auc[c] = average_precision_score(
+                truths[:, c], probabilities[:, c])
+            validClasses += 1
+        except ValueError as e:
+            if str(e) == "Input contains NaN, infinity or a value too large for dtype('float64').":
+                pr_auc[c] = np.nan
+            else:
+                raise e
 
-    pr_auc['macro'] = sum(pr_auc.values())/len(classes)
+    pr_aucValues = np.nan_to_num(list(pr_auc.values()))
+    pr_auc['macro'] = sum(pr_aucValues)/validClasses
     # Compute micro-average precision-recall curve
     # AUC under the PR curve
     precision["micro"], recall["micro"], _ = precision_recall_curve(
@@ -68,19 +87,20 @@ class RandomForestLinkPrediction(object):
     a ranked prediction of which dest nodes each src is likely to follow.
     """
 
-    def __init__(self, trainingFilename, candidatesFilename, model, **kwargs):
+    def __init__(self, training_truths, training_examples, examples,
+                 actuals, model, src_dest_nodes, **kwargs):
         # Use this file to train the classifier.
         # The first column in this file is the truth of a (src, dest) edge
         # (i.e., 1 if the edge is known to exist, 0 otherwise).
         # The rest of the columns are features on that edge.
-        TRAINING_SET_WITH_FEATURES_FILENAME = trainingFilename
+        # TRAINING_SET_WITH_FEATURES_FILENAME = trainingFilename
 
         # This file contains candidate edge pairs to score, along with
         # features on these candidate edges.
         #
         # The first column is the src node, the second is the dest node,
         # the rest of the columns are features.
-        CANDIDATES_TO_SCORE_FILENAME = candidatesFilename
+        # CANDIDATES_TO_SCORE_FILENAME = candidatesFilename
 
         # A list (must keep order) of variables to select which features to use
         # for training and for testing
@@ -88,7 +108,7 @@ class RandomForestLinkPrediction(object):
         ########################################
         # STEP 1: Read in the training examples.
         ########################################
-        truths = []  # A truth is an int (for a known true edge) or
+        '''truths = []  # A truth is an int (for a known true edge) or
         # 0 (for a false edge).
         training_examples = []  # Each training example is an array of features
         with open(TRAINING_SET_WITH_FEATURES_FILENAME, 'r') as csvF:
@@ -100,15 +120,21 @@ class RandomForestLinkPrediction(object):
 
                 truths.append(truth)
                 training_examples.append(training_example_features)
+        '''
+
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        ''' Filter features according to model '''
+        training_examples = [[e[1] for e in t if e[0] in model] for t in training_examples]
+        examples = [[e[1] for e in t if e[0] in model] for t in examples]
 
         ''' Create sample weights '''
-        classes = set(map(int, set(truths)))
+        classes = set(map(int, set(training_truths)))
         lengths = dict()
         for c in classes:
-            lengths[c] = len([e for e in truths if e == c])
+            lengths[c] = len([e for e in training_truths if e == c])
 
         sampleWeights = []
-        for t in truths:
+        for t in training_truths:
             for c in classes:
                 if t == c:
                     sampleWeights.append(1/lengths[c])
@@ -120,16 +146,17 @@ class RandomForestLinkPrediction(object):
         #############################
         clf = RandomForestClassifier(n_estimators=500,
                                      oob_score=True, **kwargs)
-        clf = clf.fit(training_examples, truths,
+        clf = clf.fit(training_examples, training_truths,
                       sample_weight=sampleWeights)
 
         ###############################
         # STEP 3: Score the candidates.
         ###############################
-        src_dest_nodes = []
+        '''src_dest_nodes = []
         examples = []
         actualLinks = collections.defaultdict(set)
         actuals = list()
+
         with open(CANDIDATES_TO_SCORE_FILENAME, 'r') as csvF:
             csvReader = csv.DictReader(csvF, delimiter=',')
             for line in csvReader:
@@ -145,7 +172,7 @@ class RandomForestLinkPrediction(object):
 
                 example_features = fields
                 examples.append(example_features)
-
+        '''
         ''' Create a dictionary of predicted links '''
         predictions = clf.predict(examples)
         predictedLinks = collections.defaultdict(set)
@@ -158,7 +185,6 @@ class RandomForestLinkPrediction(object):
                 predictedLinks[src]
 
         ''' Store the stuff '''
-        self.actualLinks = actualLinks
         self.actuals = actuals
         self.truths = createTruthArray(actuals, classes)
         self.classes = classes
@@ -174,9 +200,6 @@ class RandomForestLinkPrediction(object):
                                          average='weighted')
         self.recall = recall_score(actuals, predictions,
                                    average='weighted')
-        self.TRAINING = TRAINING_SET_WITH_FEATURES_FILENAME
-        self.CANDIDATES = CANDIDATES_TO_SCORE_FILENAME
-
 
     def calculatePR(self):
         return pr(self.truths, self.probabilities, self.classes)

@@ -10,6 +10,8 @@ from bisect import bisect_left
 from delorean import Delorean
 # from groupStore import dict2group
 
+import Metrics
+
 # import hickle as hkl
 # import joblib
 import collections
@@ -87,10 +89,7 @@ if __name__ == "__main__":
         Delorean(timeAux.epochToLocalTime(maximum.time,
                                           amsterdam)).next_monday().midnight())
 
-    ''' Infer users '''
     users_locations = parser.inferUsers(inputLocations, pattern)
-    users_blues = parser.inferUsers(inputBT, pattern)
-    users = users_locations | users_blues
 
     ''' Read the geo contexts from the saved pickles '''
     print('reading geographic contexts')
@@ -101,7 +100,11 @@ if __name__ == "__main__":
     print('reading bluetooths')
     pattern = re.compile('bluetooth_([0-9]+)$')
     listOfBTFiles = parser.readFiles(inputBT, pattern)
-    users = parser.inferUsers(inputLocations, pattern, users=users)
+
+    ''' Infer users '''
+    users_blues = parser.inferUsers(inputBT, pattern)
+    all_users = users_locations | users_blues
+    print('found users: ', len(all_users))
 
     mappingForContexts = {'college': 'university',
                           'home': 'home',
@@ -178,7 +181,7 @@ if __name__ == "__main__":
             for timePeriod, locations in partitionedLocations.items():
                 locations = sorted(list(locations), key=lambda x: x[0][0])
                 for l in locations:
-                    stopLocations[user][timePeriod][l[0]] = l
+                    stopLocations[timePeriod][user][l[0]] = l
         slidingTimeDelta += offset
 
     ''' Match the bluetooths to sig. locations '''
@@ -191,7 +194,7 @@ if __name__ == "__main__":
             node = parser.parseBTTracesForOneUser(BTFilename, userIDIndex=3,
                                                   time=2, strength=1, peer=0)
             numberOfUsers += 1
-            print(numberOfUsers/len(users))
+            print(numberOfUsers/len(all_users))
             node.discardUnknownBluetooths()
             node.discardWeakBluetooths(lowerBound=-80, upperBound=100)
             node.bluetooths.sort(key=lambda x: x.time)
@@ -208,10 +211,11 @@ if __name__ == "__main__":
                 # ls = tuple([(b.peer, b.time) for b in meetings])
                 ls = np.asarray([(b.peer, b.time) for b in meetings])
                 blues[time][str(node.name)] = ls
-
             tempUserBlues = collections.defaultdict(ddd_list)
+
             ''' Match bluetooth to locations '''
-            for timePeriod, locations in stopLocations[str(node.name)].items():
+            for timePeriod, users in stopLocations.items():
+                locations = users[str(node.name)]
                 if locations:
                     ksLower, ksUpper = zip(*locations)
                     for bt in node.bluetooths:
@@ -229,9 +233,8 @@ if __name__ == "__main__":
                         localizedBlues[timePeriod][str(
                             node.name)][posSl][peer] = ls
 
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
     ''' Feature extraction '''
-    print('dumping file')
+    print('dumping files')
     filename = str(outputPath) + 'parsedData_time_' +\
         str(timeDelta).replace('.', '_')
 
@@ -248,14 +251,24 @@ if __name__ == "__main__":
             pickle.dump(values, f)
     localizedBlues = []
 
+    placeEntropy = Metrics.calculatePlaceEntropy(stopLocations)
+    for period, values in stopLocations.items():
+        with open(filename + '_stopLocation_' + str(period[0]) + '_' +
+                  str(period[1]) + '.pck', 'wb') as f:
+            pickle.dump(values, f)
+    stopLocations = []
+
     results = dict()
     # results['localizedBlues'] = localizedBlues
     # results['blues'] = blues
-    results['stopLocs'] = stopLocations
+    # results['stopLocs'] = stopLocations
     # results['count'] = countObservations
+    results['placeEntropy'] = placeEntropy
     results['intervalls'] = timeIntervalls
     results['slidingIntervalls'] = slidingTimeIntervalls
-    results['users'] = users
+    results['users'] = all_users
 
     with open(filename + '_results.pck', 'wb') as f:
         pickle.dump(results, f)
+
+    sys.exit()

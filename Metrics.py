@@ -18,9 +18,9 @@ def calculatePlaceEntropy(stopLocs):
     '''
     timeSpentAtLocation = collections.defaultdict(int)
     timeSpentAtLocationPerUser = collections.defaultdict(dd_int)
-    for user, values in stopLocs.items():
-        for intervall, RENAMEME in values.items():
-            for timeSpent, stopLoc in RENAMEME.items():
+    for timeIntervall, users in stopLocs.items():
+        for user, values in users.items():
+            for timeSpent, stopLoc in values.items():
                 ts = timeSpent[1] - timeSpent[0]
                 assert ts > 0, 'Time between measurments must be > 0'
                 locationIndex = stopLoc[2]

@@ -1,6 +1,3 @@
-# TODO Investigate how some exported networks don't have any time information
-# for some ties
-
 from gs import aux
 from gs import dictAux
 from gs import parser
@@ -226,8 +223,11 @@ if __name__ == "__main__":
         'parsedData_time_' + base + '_blue_([0-9_]+)\.pck')
     blues = parser.loadPickles(
         resultsDirectory, bluesPattern, transformKey=transformKey)
+    stopLocPattern = re.compile(
+        'parsedData_time_' + base + '_stopLocation_([0-9_]+)\.pck')
+    stopLocations =  parser.loadPickles(
+        resultsDirectory, bluesPattern, transformKey=transformKey)
 
-    stopLocations = rs['stopLocs']
     timeIntervalls = list(rs['intervalls'])
     usersLs = rs['users']
     rs = []
@@ -241,7 +241,7 @@ if __name__ == "__main__":
         for user, observations in users.items():
             if len(observations) > 0:
                 for locationIndex, observation in observations.items():
-                    con = list(stopLocations[str(user)][timePeriod].values())
+                    con = list(stopLocations[timePeriod][str(user)].values())
                     con = con[locationIndex][1]
                     for peer, meetings in observation.items():
                         meetings = sorted(meetings)
