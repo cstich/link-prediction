@@ -423,6 +423,6 @@ class UserMetrics(object):
                                 allMeetings += 1
         x = triadic0
         triadic0 = collections.defaultdict(lambda: x)
-        for peer, metings in triadic1.items():
+        for peer, metings in triadic2.items():
             triadic1[peer] = singleMeetings - triadic2[peer]
         return triadic0, triadic1, triadic2, triadic3, triadic4, triadic5

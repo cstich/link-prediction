@@ -1,4 +1,3 @@
-from sklearn.metrics import accuracy_score, precision_score, recall_score
 from gs.dictAux import dd_int
 
 import collections
@@ -7,6 +6,7 @@ import networksAux
 import numpy as np
 import random
 import predictLinks as pl
+import sklearn.metrics
 
 
 class NullModel(object):
@@ -45,12 +45,11 @@ class NullModel(object):
                 actuals[peer][node] = friendshipClass
 
         networkT1 = self.__addSparseTies__(networkT1, nodes)
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
         self.networkT0 = networkT0
         self.networkT1 = networkT1
         self.classes = sorted(list(classes))
-        self.nodes = list(nodes) # Nodes have to be ordered for the alignment
+        self.nodes = list(nodes)  # Nodes have to be ordered for the alignment
         # of stringActuals and the prediction
         self.examples = examples
         self.stringExamples = self.createString(examples)
@@ -176,18 +175,18 @@ class NullModel(object):
         return ls
 
     def acc(self, prediction):
-        return accuracy_score(self.stringActuals, prediction)
+        return sklearn.metrics.accuracy_score(self.stringActuals, prediction)
 
-    def prec(self, prediction):
-        return precision_score(self.stringActuals,
-                               prediction, average='weighted')
+    def prec(self, prediction, average):
+        return sklearn.metrics.precision_score(
+            self.stringActuals, prediction, average=average)
 
     def pr(self, probabilities):
         return pl.pr(self.truths, probabilities, self.classes)
 
-    def rec(self, prediction):
-        return recall_score(self.stringActuals,
-                            prediction, average='weighted')
+    def rec(self, prediction, average):
+        return sklearn.metrics.recall_score(
+            self.stringActuals, prediction, average=average)
 
     def roc(self, probabilities):
         return pl.roc(self.truths, probabilities, self.classes)

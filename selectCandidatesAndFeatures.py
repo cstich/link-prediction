@@ -4,6 +4,7 @@ from gs.dictAux import dd_dict, dd_set, DefaultOrderedDict
 
 from Metrics import UserMetrics
 from Metrics import generate_triangles
+from PersonalizedPageRank import PersonalizedPageRank
 
 import predictions
 import Metrics
@@ -102,19 +103,25 @@ def setNetworkFeatures(features, name, edge):
         features[edge[1]][name][edge[0]] = edge[2]
 
 
-def findValuesForFeatures(listOfFeatures, features, user, peer,
-                          saveFeatureName=False):
-    result = []
+def setPropScores(features, user, scores, name='propScores'):
+    for s in scores:
+        peer = s[0]
+        try:
+            features[user][name][peer] = s[1]
+        except TypeError:
+            features[user][name] =\
+                collections.defaultdict(float)
+            features[user][name][peer] = s[1]
+
+
+def findValuesForFeatures(X_features, listOfFeatures, features, user, peer):
     for f in listOfFeatures:
         try:
             e = features[user][f][peer]
         except (TypeError, KeyError):
             e = 0
-        if saveFeatureName:
-            result.append((f, e))
-        else:
-            result.append(e)
-    return result
+        X_features[f].append(e)
+    return X_features
 
 
 def generateFeatureVectorStrings(s, iterable, sep='_'):
@@ -184,6 +191,7 @@ def evaluateKey(key, value):
     else:
         return True
 
+
 ''' Define the different models '''
 # TODO Update features
 ''' Past model '''
@@ -213,6 +221,7 @@ networkFeatures.extend([
     'adamicAdar',
     'PA',
     'propScores',
+    'weightedPropScores',
     'resourceAllocation'])
 
 timeFeatures = []
@@ -241,6 +250,7 @@ placeFeatures.extend([
 
 ''' Node only features '''
 nodeFeatures = []
+# TODO Actually pick the node only features
 nodeFeatures.extend(copy.copy(baseFeatures))
 nodeFeatures.extend(copy.copy(placeFeatures))
 nodeFeatures.extend(copy.copy(socialFeatures))
@@ -259,6 +269,9 @@ fullFeatures.extend(copy.copy(socialFeatures)[2:])
 fullFeatures.extend(copy.copy(networkFeatures)[2:])
 fullFeatures.extend(copy.copy(timeFeatures)[2:])
 
+featureSets = [pastFeatures, baseFeatures, networkFeatures, timeFeatures,
+               socialFeatures, placeFeatures, nodeFeatures,
+               timeSocialPlaceFeatures, fullFeatures]
 
 if __name__ == "__main__":
     if len(sys.argv) != 6:
@@ -379,6 +392,7 @@ if __name__ == "__main__":
             triangles[time] = generate_triangles(interactions)
 
         ''' Generate user based features '''
+        # TODO Potentially filter only for the features you need right here
         for user, peers in trainingNetwork.items():
             try:
                 stopLocs = stopLocations[user]
@@ -401,6 +415,20 @@ if __name__ == "__main__":
         generateNetworkFeatures(
             nxTrainingNetwork, features, networkFunctions, networkLabels)
 
+        ''' Find the propagation opscores '''
+        unweightedTrainingNetwork = unweighNetwork(trainingNetwork)
+        ppr = PersonalizedPageRank(trainingNetwork, trainingNetwork)
+        for user, peers in network.items():
+            ppr = PersonalizedPageRank(unweightedTrainingNetwork,
+                                       unweightedTrainingNetwork)
+            scores = ppr.pageRank(user, returnScores=True)
+            setPropScores(features, user, scores)
+
+            weightedPpr = PersonalizedPageRank(unweightedTrainingNetwork,
+                                       unweightedTrainingNetwork)
+            weightedScores = ppr.pageRank(user, returnScores=True)
+            setPropScores(features, user, weightedScores, 'weightedPropScores')
+
         ''' Restrict the search space to friends of friends '''
         friendFriends = Metrics.friendFriends(trainingNetwork)
         nullModelTrainingIntervall = (testingIntervall[0]-lengthOfDeltaT,
@@ -410,65 +438,58 @@ if __name__ == "__main__":
 
         results = predictions.createResultsDictionaries()
         featureImportance = DefaultOrderedDict(list)
-        dictOfFeatures = createDictOfFeatures()
+        models = createDictOfFeatures()
 
         ''' Pass features to predictions script '''
         ''' And thus skip saving to file '''
         print('running models')
-        for j, currentTestSet in enumerate(testUsers):
-            training_truths = []
-            training_examples = []
-            examples = []
-            actuals = []
-            src_dest_nodes = []
+        # TODO Select cross-validation folds via sklearn
+        X = []  # X are features
+        y = []  # y are the associated values
+        src_dest_nodes = []
+        X_features = collections.defaultdict(list) # X are the training features
+        # organized by feature -> easy to select a random set
 
-            for user in allUsers:
-                try:
-                    peers = set(trainingNetwork[user].keys())
-                except KeyError:
-                    peers = set()
-                peersPeers = friendFriends[user]
-                candidatesForSearchSpace = peers | peersPeers
+        for user in allUsers:
+            try:
+                peers = set(trainingNetwork[user].keys())
+            except KeyError:
+                peers = set()
+            peersPeers = friendFriends[user]
+            candidatesForSearchSpace = peers | peersPeers
 
-                # for peer in candidatesForSearchSpace:
-                for peer in allUsers:
-                    row = []
-                    truth = findTie(testingNetwork,
-                                    user, peer, classes)
-                    edge = findTie(trainingNetwork, user,
-                                   peer, classes)
-                    valuesFeatures = findValuesForFeatures(
-                        listOfFeatures, features,
-                        user, peer, saveFeatureName=True)
+            for peer in candidatesForSearchSpace:
+            # for peer in allUsers:
+                row = []
+                truth = findTie(testingNetwork,
+                                user, peer, classes)
+                edge = findTie(trainingNetwork, user,
+                                peer, classes)
+                valuesFeatures = findValuesForFeatures(
+                    X_features, listOfFeatures, features,
+                    user, peer)
 
-                    row.append(('edge', edge))
-                    row.extend(valuesFeatures)
+                X_features['edge'].append(edge)
+                y.append(truth)
+                src_dest_nodes.append((user, peer))
 
-                    if user not in currentTestSet:
-                        # Training examples
-                        training_truths.append(truth)
-                        training_examples.append(row)
-                    else:
-                        # Testing
-                        actuals.append(truth)
-                        examples.append(row)
-                        src_dest_nodes.append((user, peer))
-                # TODO Test the null model with two identical networks
-                # TODO Deduce probabilities
-                # TODO Get the limit of nan in tpr and fpr
-                pred = predictions.Predictions(
-                    training_truths, training_examples, examples, actuals,
-                    src_dest_nodes, results, featureImportance,
-                    nullModelTrainingNetworkFile, nullModelTestingNetworkFile,
-                    True, 1, listOfFeatures,
-                    classesSet, candidatesForSearchSpace, allUsers, outputPath)
-                ''' Tests to make sure we include all features '''
-                setFeatures = set(listOfFeatures)
-                setFeatures.add('edge')
-                assert set(fullFeatures) == setFeatures
-                pred.runNullModel()
-                pred.run('full', fullFeatures)
-                # TODO Run predictions model
-                # TODO Update features for appropriate models
-                # TODO Export prediction model
-                # TODO Parralize model
+        # TODO Test the null model with two identical networks
+        import pdb; pdb.set_trace()  # EXAMPLES BREAKPOINT
+
+        # TODO Split into training and testing
+        pred = predictions.Predictions(
+                training_truths, training_examples, examples, actuals,
+                src_dest_nodes, results, featureImportance,
+                nullModelTrainingNetworkFile, nullModelTestingNetworkFile,
+                True, 1, listOfFeatures,
+                classesSet, candidatesForSearchSpace, allUsers, outputPath)
+        ''' Tests to make sure we include all features '''
+        setFeatures = set(listOfFeatures)
+        setFeatures.add('edge')
+        assert set(fullFeatures) == setFeatures
+        pred.runNullModel()
+        pred.run('full', fullFeatures)
+        # TODO Run predictions model
+        # TODO Update features for appropriate models
+        # TODO Export prediction model
+        # TODO Parralize model

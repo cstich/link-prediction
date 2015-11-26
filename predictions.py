@@ -11,40 +11,49 @@ amsterdam = pytz.timezone('Europe/Amsterdam')
 
 def scoreModels(model, dictionaries, key):
     acc = model.acc
-    prec = model.precision
-    rec = model.recall
+    precMacro = model.precision('macro')
+    precMicro = model.precision('micro')
+    recMacro = model.recall('macro')
+    recMicro = model.recall('micro')
     roc_macro = model.calculateROC()[2]['macro']
     roc_micro = model.calculateROC()[2]['micro']
     pr_macro = model.calculatePR()[2]['macro']
     pr_micro = model.calculatePR()[2]['micro']
-    scores = acc, prec, rec, roc_macro, roc_micro, pr_macro, pr_micro
+    scores = acc, precMacro, precMicro, recMacro, recMicro,\
+        roc_macro, roc_micro, pr_macro, pr_micro
     for d, score in zip(dictionaries, scores):
         d[key].append(score)
 
 
-def scoreNullModel(dictionaries, NMacc, NMprec, NMrec, NMroc_auc, NMpr_auc):
+def scoreNullModel(dictionaries, NMacc, NMprecMacro, NMprecMicro,
+                   NMrecMacro, NMrecMicro, NMroc_auc, NMpr_auc):
     acc = statistics.mean(NMacc)
-    prec = statistics.mean(NMprec)
-    rec = statistics.mean(NMrec)
+    precMacro = statistics.mean(NMprecMacro)
+    recMacro = statistics.mean(NMrecMacro)
+    precMicro = statistics.mean(NMprecMicro)
+    recMicro = statistics.mean(NMrecMicro)
     roc_macro = NMroc_auc['macro']
     roc_micro = NMroc_auc['micro']
     pr_macro = NMpr_auc['macro']
     pr_micro = NMpr_auc['micro']
-    scores = acc, prec, rec, roc_macro, roc_micro, pr_macro, pr_micro
+    scores = acc, precMacro, precMicro, recMacro, recMicro,\
+        roc_macro, roc_micro, pr_macro, pr_micro
     for d, score in zip(dictionaries, scores):
         d['null'].append(score)
 
 
 def createResultsDictionaries():
     accs = DefaultOrderedDict(list)
-    precs = DefaultOrderedDict(list)
-    recs = DefaultOrderedDict(list)
+    precMacros = DefaultOrderedDict(list)
+    precMicros = DefaultOrderedDict(list)
+    recMacros = DefaultOrderedDict(list)
+    recMicros = DefaultOrderedDict(list)
     roc_macros = DefaultOrderedDict(list)
     roc_micros = DefaultOrderedDict(list)
     pr_macros = DefaultOrderedDict(list)
     pr_micros = DefaultOrderedDict(list)
-    results = [accs, precs, recs, roc_macros, roc_micros,
-               pr_macros, pr_micros]
+    results = [accs, precMacros, precMicros, recMacros, recMicros,
+               roc_macros, roc_micros, pr_macros, pr_micros]
     return results
 
 
@@ -71,26 +80,32 @@ class Predictions(object):
 
     def runNullModel(self):
         NMaccs = []
-        NMprecs = []
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
-        NMrecs = []
+        NMprecMacros = []
+        NMprecMicros = []
+        NMrecMacros = []
+        NMrecMicros = []
         NM = NullModel(
             self.networkT0f, self.networkT1f, self.classesSet, self.allUsers)
         predictions = NM.predictions(1)
         p = NM.probabilities()
         probabilities = NM.probabilityArray(p)
-        _, _, NMroc_auc = NM.roc(probabilities)
-        _, _, NMpr_auc = NM.pr(probabilities)
+        tpr, fpr, NMroc_auc = NM.roc(probabilities)
+        precision, recall, NMpr_auc = NM.pr(probabilities)
 
         for prediction in predictions:
             NMacc = NM.acc(prediction)
             NMaccs.append(NMacc)
-            NMprec = NM.prec(prediction)
-            NMprecs.append(NMprec)
-            NMrec = NM.rec(prediction)
-            NMrecs.append(NMrec)
+            NMprecMacro = NM.prec(prediction, 'macro')
+            NMprecMacros.append(NMprecMacro)
+            NMrecMacro = NM.rec(prediction, 'macro')
+            NMrecMacros.append(NMrecMacro)
+            NMprecMicro = NM.prec(prediction, 'micro')
+            NMprecMicros.append(NMprecMicro)
+            NMrecMicro = NM.rec(prediction, 'micro')
+            NMrecMicros.append(NMrecMicro)
 
-        scoreNullModel(self.results, NMaccs, NMprecs, NMrecs,
+        scoreNullModel(self.results, NMaccs, NMprecMacros, NMprecMicros,
+                       NMrecMacros, NMrecMicros,
                        NMroc_auc, NMpr_auc)
 
     def run(self, modelName, modelFeatures):

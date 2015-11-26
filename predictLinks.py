@@ -1,9 +1,7 @@
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import average_precision_score, roc_curve, auc,\
-    accuracy_score, precision_score, recall_score, precision_recall_curve
-
 import collections
 import numpy as np
+import sklearn.ensemble
+import sklearn.metrics
 
 
 def createTruthArray(actuals, classes):
@@ -23,10 +21,10 @@ def roc(truths, probabilities, classes):
         validClasses = 0
         for c in classes:
             currentTruths = truths[:, c]
-            fpr[c], tpr[c], _ = roc_curve(currentTruths,
-                                          probabilities[:, c])
+            fpr[c], tpr[c], _ = sklearn.metrics.roc_curve(
+                currentTruths, probabilities[:, c])
             try:
-                roc_auc[c] = auc(fpr[c], tpr[c])
+                roc_auc[c] = sklearn.metrics.auc(fpr[c], tpr[c])
                 validClasses += 1
             except ValueError as e:
                 if str(e) == "Input contains NaN, infinity or a value too large for dtype('float64').":
@@ -37,10 +35,15 @@ def roc(truths, probabilities, classes):
         roc_aucValues = np.nan_to_num(list(roc_auc.values()))
         roc_auc['macro'] = sum(roc_aucValues)/validClasses
         # Compute micro-average ROC curve and ROC area
-        fpr["micro"], tpr["micro"], _ = roc_curve(truths.ravel(),
-                                                  probabilities.ravel())
-        roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
-        return fpr, tpr, roc_auc
+        fpr["micro"], tpr["micro"], _ = sklearn.metrics.roc_curve(
+            truths.ravel(), probabilities.ravel())
+        roc_auc["micro"] = sklearn.metrics.auc(fpr["micro"], tpr["micro"])
+        # Compute micro-average ROC curve and ROC area without 0 class
+        fpr["micro-0"], tpr["micro-0"], _ = sklearn.metrics.roc_curve(
+            truths[:, 1:].ravel(), probabilities[:, 1:].ravel())
+        roc_auc["micro-0"] = sklearn.metrics.auc(fpr["micro-0"], tpr["micro-0"])
+
+        return tpr, fpr, roc_auc
 
 
 def pr(truths, probabilities, classes):
@@ -50,10 +53,10 @@ def pr(truths, probabilities, classes):
     pr_auc = dict()
     validClasses = 0
     for c in classes:
-        precision[c], recall[c], _ = precision_recall_curve(
+        precision[c], recall[c], _ = sklearn.metrics.precision_recall_curve(
             truths[:, c], probabilities[:, c])
         try:
-            pr_auc[c] = average_precision_score(
+            pr_auc[c] = sklearn.metrics.average_precision_score(
                 truths[:, c], probabilities[:, c])
             validClasses += 1
         except ValueError as e:
@@ -66,10 +69,16 @@ def pr(truths, probabilities, classes):
     pr_auc['macro'] = sum(pr_aucValues)/validClasses
     # Compute micro-average precision-recall curve
     # AUC under the PR curve
-    precision["micro"], recall["micro"], _ = precision_recall_curve(
+    precision["micro"], recall["micro"], _ = \
+        sklearn.metrics.precision_recall_curve(
         truths.ravel(), probabilities.ravel())
-    pr_auc["micro"] = average_precision_score(
+    pr_auc["micro"] = sklearn.metrics.average_precision_score(
         truths, probabilities, average="micro")
+    precision["micro-0"], recall["micro-0"], _ =\
+        sklearn.metrics.precision_recall_curve(
+        truths[:, 1:].ravel(), probabilities[:, 1:].ravel())
+    pr_auc["micro-0"] = sklearn.metrics.average_precision_score(
+        truths[:, 1:], probabilities[:, 1:], average="micro")
 
     return precision, recall, pr_auc
 
@@ -124,8 +133,10 @@ class RandomForestLinkPrediction(object):
 
         import pdb; pdb.set_trace()  # XXX BREAKPOINT
         ''' Filter features according to model '''
-        training_examples = [[e[1] for e in t if e[0] in model] for t in training_examples]
-        examples = [[e[1] for e in t if e[0] in model] for t in examples]
+        training_examples = [[e[1] for e in t if e[0] in model]
+                             for t in training_examples]
+        examples = [[e[1] for e in t if e[0] in model]
+                    for t in examples]
 
         ''' Create sample weights '''
         classes = set(map(int, set(training_truths)))
@@ -144,8 +155,8 @@ class RandomForestLinkPrediction(object):
         #############################
         # STEP 2: Train a classifier.
         #############################
-        clf = RandomForestClassifier(n_estimators=500,
-                                     oob_score=True, **kwargs)
+        clf = sklearn.ensemble.RandomForestClassifier(
+            n_estimators=500, oob_score=True, **kwargs)
         clf = clf.fit(training_examples, training_truths,
                       sample_weight=sampleWeights)
 
@@ -195,14 +206,18 @@ class RandomForestLinkPrediction(object):
         self.predictedLinks = predictedLinks
         self.probabilities = np.asarray(clf.predict_proba(examples))
         self.src = src
-        self.acc = accuracy_score(actuals, predictions)
-        self.precision = precision_score(actuals, predictions,
-                                         average='weighted')
-        self.recall = recall_score(actuals, predictions,
-                                   average='weighted')
+        self.acc = sklearn.metrics.accuracy_score(actuals, predictions)
 
     def calculatePR(self):
         return pr(self.truths, self.probabilities, self.classes)
 
     def calculateROC(self):
         return roc(self.truths, self.probabilities, self.classes)
+
+    def precision(self, average):
+        self.precision = sklearn.metrics.precision_score(
+            self.actuals, self.predictions, average=average)
+
+    def recall(self, average):
+        self.precision = sklearn.metrics.recall_score(
+            self.ctuals, self.predictions, average=average)
