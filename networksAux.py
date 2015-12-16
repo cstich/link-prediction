@@ -27,7 +27,9 @@ def constructNetworkFromFile(networkFile, weightedNetworks):
 
 def mapSecondsToFriendshipClass(seconds):
     seconds = int(seconds)
-    if seconds >= 0 and seconds < 300:
+    if seconds == 0:
+        return 0
+    elif seconds >= 1 and seconds < 300:
         return 1
     elif seconds >= 300 and seconds < 603:
         return 2

@@ -1,7 +1,6 @@
 from gs import aux
 from gs import timeAux
 from gs.dictAux import dd_int
-from delorean import Delorean
 
 import collections
 import copy
@@ -128,7 +127,7 @@ class UserMetrics(object):
                 interactionsAtTime[time].add(peer)
         for time, peers in interactionsAtTime.items():
             hourOfTheWeek = timeAux.epochToHourOfTheWeek(time, amsterdam)
-
+            assert hourOfTheWeek > 0 and hourOfTheWeek < 168
             if len(contextAtTime[self.user][time]) == 0:
                 context = 'other'
             else:
@@ -190,8 +189,6 @@ class UserMetrics(object):
         timeSpentWith = collections.defaultdict(list)
         timeSpentWithDict = collections.defaultdict(int)
         metAtHourOfTheWeek = collections.defaultdict(list)
-        metAtDayOfTheWeek = collections.defaultdict(list)
-        metAtHourOfTheDay = collections.defaultdict(list)
         metLast = collections.defaultdict(int)
 
         for blue in self.blues:
@@ -201,22 +198,16 @@ class UserMetrics(object):
             timeSpentWith[str(blue[0])].append(blue[1])
             # At which time people have met
             localTime = timeAux.epochToLocalTime(blue[1], amsterdam)
-            lastMonday = Delorean(localTime).last_monday().midnight()
-            timeDelta = localTime - lastMonday
 
             hour = localTime.hour
             day = localTime.weekday()
-            days, seconds = timeDelta.days, timeDelta.seconds
-            hourOfTheWeek = (days * 24) + (seconds // 3600)
-
+            hourOfTheWeek = day * 24 + hour
+            # print(hourOfTheWeek)
+            assert hourOfTheWeek > -1 and hourOfTheWeek < 169
             metAtHourOfTheWeek[str(blue[0])].append(hourOfTheWeek)
-            metAtDayOfTheWeek[str(blue[0])].append(day)
-            metAtHourOfTheDay[str(blue[0])].append(hour)
 
         # Find the mode for now of when people have mostly met
         self.saveTimeMetric(metAtHourOfTheWeek, 'metAtHourOfTheWeek')
-        self.saveTimeMetric(metAtDayOfTheWeek, 'metAtDayOfTheWeek')
-        self.saveTimeMetric(metAtHourOfTheDay, 'metAtHourOfTheDay')
         for peer, lastMeeting in metLast.items():
             self.metrics['metLast'][peer] = lastMeeting
 
@@ -245,12 +236,12 @@ class UserMetrics(object):
 
         # Spatial-triadic closure
         t0, t1, t2, t3, t4, t5 = self.triadicClosure()
-        self.metrics['triadicClosure_0'] = t0
-        self.metrics['triadicClosure_1'] = t1
-        self.metrics['triadicClosure_2'] = t2
-        self.metrics['triadicClosure_3'] = t3
-        self.metrics['triadicClosure_4'] = t4
-        self.metrics['triadicClosure_5'] = t5
+        self.metrics['triadicClosure0'] = t0
+        self.metrics['triadicClosure1'] = t1
+        self.metrics['triadicClosure2'] = t2
+        self.metrics['triadicClosure3'] = t3
+        self.metrics['triadicClosure4'] = t4
+        self.metrics['triadicClosure5'] = t5
 
     def getPlaceFeatures(self):
         ''' Create the place features - context, relative importance '''
@@ -341,6 +332,7 @@ class UserMetrics(object):
     def saveTimeMetric(self, meetingsAtTime, nameOfMetric):
         for peer, meetings in meetingsAtTime.items():
             for time, value in collections.Counter(meetings).items():
+                assert time > -1 and time < 168
                 self.metrics[nameOfMetric+str(time)][peer] = value
 
     def timeSpentAtLocation(self):
@@ -393,10 +385,7 @@ class UserMetrics(object):
         allMeetings = 0
         for time in range(self.beginTime, self.endTime, 600):
             peers = self.interactionsAtTime[time][self.user]
-            ''' Select all triangles with s '''
-            triangles = self.triangles[time]
-            if triangles is not None:
-                trianglesS = [t for t in triangles if self.user in t]
+
             if len(peers) == 0:
                 triadic0 += 1  # Create a defaultdict with
                 # this as its default value
@@ -415,14 +404,21 @@ class UserMetrics(object):
                         else:
                             triadic4[cp] += 1
                     allMeetings += 1
-                if trianglesS is not None:
-                    for t in trianglesS:
-                        for p in t:
-                            if p != self.user:
-                                triadic5[p] += 1
-                                allMeetings += 1
+
+                triangles = self.triangles[time]
+                if triangles is not None:
+                    for t in triangles:
+                        if self.user in t:
+                            for p in t:
+                                if p != self.user:
+                                    triadic5[p] += 1
+                                    allMeetings += 1
         x = triadic0
-        triadic0 = collections.defaultdict(lambda: x)
+        defaultTriadic0 = collections.defaultdict(lambda: x)
+        triadic0 = dict()
+        for peer in self.users:
+            triadic0[peer] = defaultTriadic0[peer]
+
         for peer, metings in triadic2.items():
             triadic1[peer] = singleMeetings - triadic2[peer]
         return triadic0, triadic1, triadic2, triadic3, triadic4, triadic5

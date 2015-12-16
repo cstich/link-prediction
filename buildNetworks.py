@@ -226,7 +226,7 @@ if __name__ == "__main__":
     stopLocPattern = re.compile(
         'parsedData_time_' + base + '_stopLocation_([0-9_]+)\.pck')
     stopLocations =  parser.loadPickles(
-        resultsDirectory, bluesPattern, transformKey=transformKey)
+        resultsDirectory, stopLocPattern, transformKey=transformKey)
 
     timeIntervalls = list(rs['intervalls'])
     usersLs = rs['users']

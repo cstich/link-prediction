@@ -58,15 +58,15 @@ def createResultsDictionaries():
 
 
 class Predictions(object):
-    def __init__(self, training_truths, training_examples, examples,
-                 actuals, src_dest_nodes, results, featureImportance,
-                 networkT0f, networkT1f, weighted, n_jobs, listOfFeatures,
-                 classesSet, candidates, allUsers, outputPath, **kwargs):
+    def __init__(self, X_train, y_train, X_test, y_test,
+                 src_dest_nodes, results, featureImportance,
+                 networkT0f, networkT1f, weighted, n_jobs,
+                 model, timestep, classesSet, allUsers, outputPath, **kwargs):
 
-        self.training_truths = training_truths
-        self.training_examples = training_examples
-        self.examples = examples
-        self.actuals = actuals
+        self.y_train = y_train
+        self.X_train = X_train
+        self.X_test = X_test
+        self.y_test = y_test
         self.src_dest_nodes = src_dest_nodes
         self.results = results
         self.featureImportance = featureImportance
@@ -74,9 +74,14 @@ class Predictions(object):
         self.networkT1f = networkT1f
         self.weighted = weighted
         self.classesSet = classesSet
-        self.candidate = candidates
+        self.classesList = sorted(list(classesSet))
         self.allUsers = allUsers
         self.n_jobs = n_jobs
+        self.model = model
+        self.timestep = timestep
+        self.outputPath = outputPath
+        assert len(X_train) == len(y_train)
+        assert len(X_test) == len(y_test)
 
     def runNullModel(self):
         NMaccs = []
@@ -89,6 +94,7 @@ class Predictions(object):
         predictions = NM.predictions(1)
         p = NM.probabilities()
         probabilities = NM.probabilityArray(p)
+        # probabilities = NM.predictionsToProbability(predictions)
         tpr, fpr, NMroc_auc = NM.roc(probabilities)
         precision, recall, NMpr_auc = NM.pr(probabilities)
 
@@ -108,11 +114,11 @@ class Predictions(object):
                        NMrecMacros, NMrecMicros,
                        NMroc_auc, NMpr_auc)
 
-    def run(self, modelName, modelFeatures):
-        ''' Run the models and score them '''
-        model = rf(self.training_truths, self.training_examples,
-                   self.examples, self.actuals,
-                   modelFeatures, self.src_dest_nodes, n_jobs=self.n_jobs)
+    def run(self, modelName):
+        model = rf(self.X_train, self.y_train,
+                   self.X_test, self.y_test,
+                   self.src_dest_nodes,
+                   self.classesList, n_jobs=self.n_jobs)
         scoreModels(model, self.results, modelName)
         self.featureImportance[modelName].append(model.importances)
 
@@ -122,34 +128,40 @@ class Predictions(object):
     def getFeatureImportance(self):
         return self.featureImportance
 
-    def export(self, timestep, testSetNames, dictOfFeatures):
-        ''' Ouput section '''
-        if not os.path.isfile(self.outputPath + 'modelTimeseriesData.ssv'):
+    def export(self, fold):
+        if not os.path.isfile(self.outputPath + 'modelTimeseriesData_' +
+                              str(self.timestep[0]) + '-' +
+                              str(self.timestep[1]) + '.ssv'):
             with open(self.outputPath + 'modelTimeseriesData.ssv', 'w') as f:
                 header = ' '.join(['timepoint', 'model',
                                    'testSet', 'accuracy',
-                                   'precision', 'recall',
+                                   'precision_macro', 'precision_micro',
+                                   'recall_macro', 'recall_micro',
                                    'roc_macro', 'roc_micro',
                                    'pr_macro', 'pr_micro']) + '\n'
                 f.write(header)
 
         with open(self.outputPath + 'modelTimeseriesData.ssv', 'a') as f:
-            print('Timestep: ', timestep)
+            print('Exporting: ', self.timestep)
             for key, accs in self.results[0].items():
-                precs = self.results[1][key]
-                recs = self.results[2][key]
-                roc_macros = self.results[3][key]
-                roc_micros = self.results[4][key]
-                pr_macros = self.results[5][key]
-                pr_micros = self.results[6][key]
+                prec_macros = self.results[1][key]
+                prec_micros = self.results[2][key]
+                rec_macros = self.results[3][key]
+                rec_micros = self.results[4][key]
+                roc_macros = self.results[5][key]
+                roc_micros = self.results[6][key]
+                pr_macros = self.results[7][key]
+                pr_micros = self.results[8][key]
 
-                for testSet, acc, prec, rec, roc_mac,\
-                    roc_mic, pr_mac, pr_mic in zip(
-                        testSetNames, accs, precs, recs, roc_macros, roc_micros,
+                for acc, prec_mac, prec_mic, rec_mac, rec_mic,\
+                    roc_mac, roc_mic, pr_mac, pr_mic in zip(
+                        accs, prec_macros, prec_micros, rec_macros,
+                        rec_micros, roc_macros, roc_micros,
                         pr_macros, pr_micros):
-                    row = ' '.join([str(timestep), str(key),
-                                    str(testSet), str(acc),
-                                    str(prec), str(rec),
+                    row = ' '.join([str(self.timestep[0]), str(key),
+                                    str(fold), str(acc),
+                                    str(prec_mac), str(prec_mic),
+                                    str(rec_mac), str(rec_mic),
                                     str(roc_mac), str(roc_mic),
                                     str(pr_mac), str(pr_mic)]) + '\n'
                     f.write(row)
@@ -165,10 +177,10 @@ class Predictions(object):
 
         with open(self.outputPath + 'featureImportance.ssv', 'a') as f:
             for key, values in self.featureImportance.items():
-                for testSet, importances in zip(testSetNames, values):
-                    for feature, importance in zip(dictOfFeatures[key],
+                for importances in values:
+                    for feature, importance in zip(self.model,
                                                    importances):
-                        row = ' '.join([str(timestep), str(key),
-                                        str(testSet), str(feature),
+                        row = ' '.join([str(self.timestep[0]), str(key),
+                                        str(fold), str(feature),
                                         str(importance)]) + '\n'
                         f.write(row)

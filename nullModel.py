@@ -24,10 +24,11 @@ class NullModel(object):
         examples = collections.defaultdict(dd_int)
         for node, peers in tempNetwork.items():
             for peer, c in peers.items():
-                friendshipClass = networksAux.mapSecondsToFriendshipClass(c)
-                networkT0[friendshipClass].add(frozenset((node, peer)))
-                examples[node][peer] = friendshipClass
-                examples[peer][node] = friendshipClass
+                if node != peer:
+                    friendshipClass = networksAux.mapSecondsToFriendshipClass(c)
+                    networkT0[friendshipClass].add(frozenset((node, peer)))
+                    examples[node][peer] = friendshipClass
+                    examples[peer][node] = friendshipClass
 
         networkT0 = self.__addSparseTies__(networkT0, nodes)
 
@@ -39,10 +40,11 @@ class NullModel(object):
         for node, peers in tempNetwork.items():
             nodes.add(node)
             for peer, c in peers.items():
-                friendshipClass = networksAux.mapSecondsToFriendshipClass(c)
-                networkT1[friendshipClass].add(frozenset((node, peer)))
-                actuals[node][peer] = friendshipClass
-                actuals[peer][node] = friendshipClass
+                if node != peer:
+                    friendshipClass = networksAux.mapSecondsToFriendshipClass(c)
+                    networkT1[friendshipClass].add(frozenset((node, peer)))
+                    actuals[node][peer] = friendshipClass
+                    actuals[peer][node] = friendshipClass
 
         networkT1 = self.__addSparseTies__(networkT1, nodes)
 
@@ -102,6 +104,7 @@ class NullModel(object):
             remainingTies = oldTies.difference(toRemove)
             for s in remainingTies:
                 s = set(s)
+                assert len(s) == 2
                 node = s.pop()
                 peer = s.pop()
                 assert len(s) == 0
@@ -141,7 +144,7 @@ class NullModel(object):
             row = [probabilities[c]/marginal if marginal != 0
                    else 1/len(probabilities.values())
                    for c in self.classes]
-            assert sum(row) == 1
+            assert sum(row) > 0.9999 or sum(row) < 1.0001
             probs[condition] = np.asarray(row)
 
         result = list()

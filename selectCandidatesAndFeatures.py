@@ -1,10 +1,12 @@
-from gs import aux
 from gs import parser
-from gs.dictAux import dd_dict, dd_set, DefaultOrderedDict
+from gs.dictAux import castLeaves, dd_dict, dd_float, dd_list, dd_set,\
+    DefaultOrderedDict
 
 from Metrics import UserMetrics
 from Metrics import generate_triangles
 from PersonalizedPageRank import PersonalizedPageRank
+
+from functools import partial
 
 import predictions
 import Metrics
@@ -12,6 +14,7 @@ import networksAux
 
 import collections
 import copy
+import multiprocessing
 import networkx as nx
 import numpy as np
 import os
@@ -19,13 +22,16 @@ import pickle
 import pytz
 import re
 import resource
+import sklearn.cross_validation
 import sys
+import warnings
 
 amsterdam = pytz.timezone('Europe/Amsterdam')
 
 
 def createDictOfFeatures():
     dictOfFeatures = dict(
+        altNullModel=altNullFeatures,
         base=baseFeatures, time=timeFeatures,
         place=placeFeatures, network=networkFeatures,
         social=socialFeatures,
@@ -51,9 +57,10 @@ def generateListOfFeatures():
         'PA',
         'placeEntropy',
         'propScores',
-        'resourceAllocation']
+        'resourceAllocation',
+        'weightedPropScores']
     metAtHourOfTheWeek = generateFeatureVectorStrings('metAtHourOfTheWeek',
-                                                      range(196))
+                                                      range(168))
     ls.extend(metAtHourOfTheWeek)
     triadicClosure = generateFeatureVectorStrings('triadicClosure', range(6))
     ls.extend(triadicClosure)
@@ -120,11 +127,11 @@ def findValuesForFeatures(X_features, listOfFeatures, features, user, peer):
             e = features[user][f][peer]
         except (TypeError, KeyError):
             e = 0
-        X_features[f].append(e)
+        X_features[user][f].append(e)
     return X_features
 
 
-def generateFeatureVectorStrings(s, iterable, sep='_'):
+def generateFeatureVectorStrings(s, iterable, sep=''):
     result = []
     iterable = map(str, iterable)
     for i in iterable:
@@ -192,8 +199,54 @@ def evaluateKey(key, value):
         return True
 
 
+def checkFeature(ls, name):
+    if max(ls) <= 0:
+        warningString = name + ': Has no positive cases'
+        warnings.warn(warningString, UserWarning)
+
+
+def trianglesLambda():
+    return None
+
+
+def generateFeatures(interactionsAtTime, stopLocations, localizedBlues,
+                     blues, allUsers, key, triangles, placeEntropy, user):
+    try:
+        stopLocs = stopLocations[user]
+    except KeyError:
+        stopLocs = None
+    try:
+        locBlues = localizedBlues[user]
+    except KeyError:
+        locBlues = None
+    try:
+        bl = blues[user]
+    except KeyError:
+        bl = None
+    um = UserMetrics(
+        user, allUsers, bl, locBlues, stopLocs, interactionsAtTime,
+        triangles, placeEntropy, key[0], key[1])
+    um.generateFeatures()
+    return um.metrics
+
+
+def selectModel(X, model, y):
+    ls = list()
+    for key in model:
+        ls.append(X[key])
+    result = np.asarray(list(zip(*ls)))
+    assert len(y) == len(result)
+    return result
+
+
 ''' Define the different models '''
 # TODO Update features
+
+''' Alternative null model '''
+altNullFeatures = [
+    'timeSpent'
+]
+
 ''' Past model '''
 pastFeatures = [
     'edge'
@@ -212,6 +265,7 @@ networkOnlyFeatures.extend([
     'adamicAdar',
     'PA',
     'propScores',
+    'weightedPropScores',
     'resourceAllocation'])
 
 networkFeatures = []
@@ -226,7 +280,7 @@ networkFeatures.extend([
 
 timeFeatures = []
 metAtHourOfTheWeek = generateFeatureVectorStrings('metAtHourOfTheWeek',
-                                                  range(196))
+                                                  range(168))
 timeFeatures.extend(copy.copy(baseFeatures))
 timeFeatures.extend(
     metAtHourOfTheWeek)
@@ -249,11 +303,14 @@ placeFeatures.extend([
     'relativeImportance'])
 
 ''' Node only features '''
-nodeFeatures = []
-# TODO Actually pick the node only features
+nodeFeatures = [
+    'numberOfPeople',
+    'triadicClosure1',
+    'triadicClosure2',
+    'triadicClosure3']
 nodeFeatures.extend(copy.copy(baseFeatures))
 nodeFeatures.extend(copy.copy(placeFeatures))
-nodeFeatures.extend(copy.copy(socialFeatures))
+# nodeFeatures.extend(copy.copy(socialFeatures))
 nodeFeatures.extend(copy.copy(timeFeatures))
 
 ''' time social place '''
@@ -278,7 +335,7 @@ if __name__ == "__main__":
         print("Usage: %s" % (sys.argv[0]) +
               "<data directory> "
               "<networks directory> "
-              "<length of 1 set of test users> "
+              "<number of folds> "
               "<length of delta-t period in seconds> "
               "<output directory>")
         sys.exit(-1)
@@ -293,7 +350,7 @@ if __name__ == "__main__":
     print('loading data')
     inputData = sys.argv[1]
     inputNetworks = sys.argv[2]
-    lengthOfTestUsers = int(sys.argv[3])
+    kfolds = int(sys.argv[3])
     lengthOfDeltaT = int(sys.argv[4])
     outputPath = sys.argv[5]
     scriptDir = os.path.dirname(os.path.abspath(__file__))
@@ -318,6 +375,14 @@ if __name__ == "__main__":
     stopLocationsFiles = parser.readFiles(
         resultsDirectory, stopLocPattern, transformKey=transformKey)
 
+    # Read in earlier completed threads
+    completedPattern = re.compile(
+        'timestep_([0-9-]+)\.pid')
+    completedTimeSteps = parser.readFiles(
+        outputPath + '/threads/', completedPattern,
+        transformKey=generateTransformKey('-'))
+    completedTimesteps = set(completedTimeSteps.keys())
+
     placeEntropy = rs['placeEntropy']
     timeIntervalls = list(rs['intervalls'])  # Are ordered in time
     slidingTimeIntervalls = list(rs['slidingIntervalls'])
@@ -331,28 +396,20 @@ if __name__ == "__main__":
         transformKey=transformKey)
     networks = collections.defaultdict(dd_dict)
     testingNetworks = collections.defaultdict(dd_dict)
-    # nxNetworks = collections.defaultdict(nx.Graph)
 
-    # TODO check the re-factoring
     ''' Generate featues '''
     print('Generate features')
-    features = collections.defaultdict(dd_dict)
+    # features = collections.defaultdict(dd_dict)
     networkFunctions = [nx.adamic_adar_index, nx.jaccard_coefficient,
                         nx.preferential_attachment,
                         nx.resource_allocation_index]
     networkLabels = ['adamicAdar', 'jaccard', 'PA', 'resourceAllocation']
     progress = 0
     listOfFeatures = generateListOfFeatures()
+
     ''' Use the same train and test sample for all timeframes
     aka create the samples of test users before you output your
     data '''
-    # Create n-folded training and verification sets
-    # 1) Shuffle the list of users
-    # 2) Split the random list of users into n-sublists
-    # where each sublist represents a set of users that are
-    # used for testing
-    testUsers = np.random.choice(list(allUsers), len(allUsers), replace=False)
-    testUsers = aux.chunkify(testUsers, int(len(allUsers)/lengthOfTestUsers))
     classes = networksAux.mapSecondsToFriendshipClass
     classesSet = networksAux.classesSet()
     testingIntervalls = generateTestingTimeIntervalls(timeIntervalls,
@@ -364,6 +421,8 @@ if __name__ == "__main__":
     # First put it into a function
     for trainingIntervall, testingIntervall in trainingTestingIntervalls:
         assert trainingIntervall[1] == testingIntervall[0]
+        if testingIntervall in completedTimesteps:
+            continue
         progress += 1
         print(progress/len(networkFiles))
         print('Working on: ', trainingIntervall, '/', testingIntervall)
@@ -387,46 +446,48 @@ if __name__ == "__main__":
         interactionsAtTime = binBlues(blues)
 
         ''' Generate triangles for all bluetooth bins '''
-        triangles = collections.defaultdict(lambda: None)
+        triangles = collections.defaultdict(trianglesLambda)
         for time, interactions in interactionsAtTime.items():
             triangles[time] = generate_triangles(interactions)
 
         ''' Generate user based features '''
-        # TODO Potentially filter only for the features you need right here
-        for user, peers in trainingNetwork.items():
-            try:
-                stopLocs = stopLocations[user]
-            except KeyError:
-                stopLocs = None
-            try:
-                locBlues = localizedBlues[user]
-            except KeyError:
-                locBlues = None
-            try:
-                bl = blues[user]
-            except KeyError:
-                bl = None
-            um = UserMetrics(
-                user, allUsers, bl, locBlues, stopLocs, interactionsAtTime,
-                triangles, placeEntropy, key[0], key[1])
-            um.generateFeatures()
-            features[um.user] = um.metrics
+        usersForTraining = list(trainingNetwork.keys())
+        featureArgs = [interactionsAtTime, stopLocations, localizedBlues, blues, allUsers,
+                key, triangles, placeEntropy]
+        # argsWithUsers = [[user] + args for user in usersForTraining]
+        # generateFeatures(*args)
+        features = dict()
+        for user in usersForTraining:
+            features[user] = generateFeatures(*featureArgs, user=user)
 
+        # Before ~35 seconds for the features
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         generateNetworkFeatures(
             nxTrainingNetwork, features, networkFunctions, networkLabels)
 
-        ''' Find the propagation opscores '''
+        ''' Find the propagation scores '''
         unweightedTrainingNetwork = unweighNetwork(trainingNetwork)
-        ppr = PersonalizedPageRank(trainingNetwork, trainingNetwork)
-        for user, peers in network.items():
-            ppr = PersonalizedPageRank(unweightedTrainingNetwork,
-                                       unweightedTrainingNetwork)
+        normalizedTrainingNetwork = collections.defaultdict(dd_float)
+        for user, peers in trainingNetwork.items():
+            meetings = list(map(lambda x: int(x)+1, list(peers.values())))
+            normalizedMeetings = 0
+            allMeetings = sum(meetings)
+            for peer, value in peers.items():
+                normalizedValue = (int(value)+1)/allMeetings
+                normalizedTrainingNetwork[user][peer] = normalizedValue
+                normalizedMeetings += normalizedValue
+            assert normalizedMeetings > 0.9999 and normalizedMeetings < 1.00001
+
+        for user, peers in trainingNetwork.items():
+            ppr = PersonalizedPageRank(
+                unweightedTrainingNetwork, unweightedTrainingNetwork)
             scores = ppr.pageRank(user, returnScores=True)
             setPropScores(features, user, scores)
-
-            weightedPpr = PersonalizedPageRank(unweightedTrainingNetwork,
-                                       unweightedTrainingNetwork)
-            weightedScores = ppr.pageRank(user, returnScores=True)
+            weightedPpr = PersonalizedPageRank(
+                unweightedTrainingNetwork, unweightedTrainingNetwork,
+                normalizedTrainingNetwork)
+            weightedScores = weightedPpr.pageRank(user, returnScores=True,
+                                                  weighted=True)
             setPropScores(features, user, weightedScores, 'weightedPropScores')
 
         ''' Restrict the search space to friends of friends '''
@@ -443,13 +504,19 @@ if __name__ == "__main__":
         ''' Pass features to predictions script '''
         ''' And thus skip saving to file '''
         print('running models')
+
+        ''' Tests to make sure we include all features '''
+        setFeatures = set(listOfFeatures)
+        setFeatures.add('edge')
+        assert set(fullFeatures) == setFeatures
+
         # TODO Select cross-validation folds via sklearn
         X = []  # X are features
-        y = []  # y are the associated values
-        src_dest_nodes = []
-        X_features = collections.defaultdict(list) # X are the training features
-        # organized by feature -> easy to select a random set
-
+        ys = collections.defaultdict(list)  # y are the associated values
+        src_dest_nodes = collections.defaultdict(list)
+        X_features = collections.defaultdict(dd_list)  # X is the training data
+        # organized by feature -> easy to select a certain set
+        # TODO Switch to a user based model
         for user in allUsers:
             try:
                 peers = set(trainingNetwork[user].keys())
@@ -458,38 +525,58 @@ if __name__ == "__main__":
             peersPeers = friendFriends[user]
             candidatesForSearchSpace = peers | peersPeers
 
-            for peer in candidatesForSearchSpace:
-            # for peer in allUsers:
+            # for peer in candidatesForSearchSpace:
+            for peer in allUsers:
                 row = []
                 truth = findTie(testingNetwork,
                                 user, peer, classes)
                 edge = findTie(trainingNetwork, user,
-                                peer, classes)
+                               peer, classes)
                 valuesFeatures = findValuesForFeatures(
                     X_features, listOfFeatures, features,
                     user, peer)
 
-                X_features['edge'].append(edge)
-                y.append(truth)
-                src_dest_nodes.append((user, peer))
+                X_features[user]['edge'].append(edge)
+                ys[user].append(truth)
+                src_dest_nodes[user].append((user, peer))
+
+        castLeaves(src_dest_nodes, np.asarray)
+        castLeaves(ys, np.asarray)
+        castLeaves(X_features, np.asarray)
 
         # TODO Test the null model with two identical networks
-        import pdb; pdb.set_trace()  # EXAMPLES BREAKPOINT
+        for user in allUsers:
+            y = ys[user]
+            if sum(y) == 0:
+                continue
+            X_feature = X_features[user]
+            # for key, feature in X_feature.items():
+            #     checkFeature(feature, key)
+            checkFeature(y, 'y')
+            sdn = src_dest_nodes[user]
+            for key, model in models.items():
+                kf = sklearn.cross_validation.KFold(len(y), n_folds=kfolds)
+                X = selectModel(X_feature, model, y)
 
-        # TODO Split into training and testing
-        pred = predictions.Predictions(
-                training_truths, training_examples, examples, actuals,
-                src_dest_nodes, results, featureImportance,
-                nullModelTrainingNetworkFile, nullModelTestingNetworkFile,
-                True, 1, listOfFeatures,
-                classesSet, candidatesForSearchSpace, allUsers, outputPath)
-        ''' Tests to make sure we include all features '''
-        setFeatures = set(listOfFeatures)
-        setFeatures.add('edge')
-        assert set(fullFeatures) == setFeatures
-        pred.runNullModel()
-        pred.run('full', fullFeatures)
-        # TODO Run predictions model
-        # TODO Update features for appropriate models
-        # TODO Export prediction model
-        # TODO Parralize model
+                for fold, (train_index, test_index) in enumerate(kf):
+                    X_train, X_test = X[train_index], X[test_index]
+                    y_train, y_test = y[train_index], y[test_index]
+                    # sdn_test = sdn[test_index]
+
+                    pred = predictions.Predictions(
+                        X_train, y_train, X_test, y_test,
+                        sdn, results, featureImportance,
+                        nullModelTrainingNetworkFile,
+                        nullModelTestingNetworkFile,
+                        True, 1, model, testingIntervall,
+                        classesSet, allUsers, outputPath)
+                    # TODO This order of calls does not properly work yet
+                    # TODO I don't think I can just fill up the empty probabilities
+                    pred.runNullModel()
+                    pred.run(key)
+                pred.export(fold)
+                # TODO Export prediction model
+                # TODO Parralize model
+
+        timestep = str(testingIntervall[0]) + '-' + str(testingIntervall[1])
+        open(outputPath + '/threads/timestep_' + timestep + '.pid', 'w').close()

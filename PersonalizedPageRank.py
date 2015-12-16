@@ -73,7 +73,6 @@ class PersonalizedPageRank(object):
         '''
         probs = {}
         probs[user] = 1
-
         pageRankProbs = self.pageRankHelper(user, probs, self.numOfIterations,
                                             self.directed, self.alpha, weighted)
         pageRankProbs = list(pageRankProbs.items())

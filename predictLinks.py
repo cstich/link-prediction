@@ -13,6 +13,14 @@ def createTruthArray(actuals, classes):
     return ar
 
 
+def fillProbabilities(fittedModel, X_test, y_train, classes):
+        zs = np.zeros((len(X_test), len(classes)))
+        probabilities = np.asarray(fittedModel.predict_proba(X_test))
+        for i, element in enumerate(np.unique(y_train)):
+            p = probabilities[:, i]
+            zs[:,element] = p
+        return zs
+
 def roc(truths, probabilities, classes):
         # Compute ROC curve and ROC area for each class
         fpr = dict()
@@ -96,8 +104,15 @@ class RandomForestLinkPrediction(object):
     a ranked prediction of which dest nodes each src is likely to follow.
     """
 
-    def __init__(self, training_truths, training_examples, examples,
-                 actuals, model, src_dest_nodes, **kwargs):
+    def __init__(self, X_train, y_train,
+                 X_test, y_test,
+                 src_dest_nodes,
+                 classes, **kwargs):
+        assert len(X_train) == len(y_train)
+        assert len(X_test) == len(y_test)
+        assert len(y_train) > len(y_test)
+        assert len(X_train) > len(X_test)
+
         # Use this file to train the classifier.
         # The first column in this file is the truth of a (src, dest) edge
         # (i.e., 1 if the edge is known to exist, 0 otherwise).
@@ -114,78 +129,19 @@ class RandomForestLinkPrediction(object):
         # A list (must keep order) of variables to select which features to use
         # for training and for testing
 
-        ########################################
-        # STEP 1: Read in the training examples.
-        ########################################
-        '''truths = []  # A truth is an int (for a known true edge) or
-        # 0 (for a false edge).
-        training_examples = []  # Each training example is an array of features
-        with open(TRAINING_SET_WITH_FEATURES_FILENAME, 'r') as csvF:
-            csvReader = csv.DictReader(csvF, delimiter=',')
-            for line in csvReader:
-                fields = [line[feature] for feature in model]
-                truth = int(line['edge'])
-                training_example_features = fields
-
-                truths.append(truth)
-                training_examples.append(training_example_features)
-        '''
-
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
-        ''' Filter features according to model '''
-        training_examples = [[e[1] for e in t if e[0] in model]
-                             for t in training_examples]
-        examples = [[e[1] for e in t if e[0] in model]
-                    for t in examples]
-
-        ''' Create sample weights '''
-        classes = set(map(int, set(training_truths)))
-        lengths = dict()
-        for c in classes:
-            lengths[c] = len([e for e in training_truths if e == c])
-
-        sampleWeights = []
-        for t in training_truths:
-            for c in classes:
-                if t == c:
-                    sampleWeights.append(1/lengths[c])
-                    break
-        assert len(training_examples) == len(sampleWeights)
-
         #############################
         # STEP 2: Train a classifier.
         #############################
         clf = sklearn.ensemble.RandomForestClassifier(
-            n_estimators=500, oob_score=True, **kwargs)
-        clf = clf.fit(training_examples, training_truths,
-                      sample_weight=sampleWeights)
+            n_estimators=500, oob_score=True, class_weight='balanced',
+            **kwargs)
+        clf = clf.fit(X_train, y_train)
 
         ###############################
         # STEP 3: Score the candidates.
         ###############################
-        '''src_dest_nodes = []
-        examples = []
-        actualLinks = collections.defaultdict(set)
-        actuals = list()
-
-        with open(CANDIDATES_TO_SCORE_FILENAME, 'r') as csvF:
-            csvReader = csv.DictReader(csvF, delimiter=',')
-            for line in csvReader:
-                fields = [float(line[feature]) for feature in model]
-                src = line['source']
-                dest = line['destination']
-                typ = line['edge']
-                src_dest_nodes.append((src, dest))
-
-                if int(line['edge']):
-                    actualLinks[src].add((dest, typ))
-                actuals.append(int(line['edge']))
-
-                example_features = fields
-                examples.append(example_features)
-        '''
         ''' Create a dictionary of predicted links '''
-        predictions = clf.predict(examples)
+        predictions = clf.predict(X_test)
         predictedLinks = collections.defaultdict(set)
         for i, prediction in enumerate(predictions):
             src = src_dest_nodes[i][0]
@@ -196,17 +152,18 @@ class RandomForestLinkPrediction(object):
                 predictedLinks[src]
 
         ''' Store the stuff '''
-        self.actuals = actuals
-        self.truths = createTruthArray(actuals, classes)
+        self.y_test = y_test
+        self.truths = createTruthArray(y_test, classes)
         self.classes = classes
         self.dest = dest
-        self.features = model
         self.importances = clf.feature_importances_
         self.predictions = predictions
         self.predictedLinks = predictedLinks
-        self.probabilities = np.asarray(clf.predict_proba(examples))
+        self.probabilities = fillProbabilities(clf, X_test, y_train, classes)
+        # self.probabilities = np.asarray(clf.predict_proba(X_test))
         self.src = src
-        self.acc = sklearn.metrics.accuracy_score(actuals, predictions)
+        self.acc = sklearn.metrics.accuracy_score(y_test, predictions)
+        # assert self.probabilities.shape[1] == len(self.classes)
 
     def calculatePR(self):
         return pr(self.truths, self.probabilities, self.classes)
@@ -215,9 +172,21 @@ class RandomForestLinkPrediction(object):
         return roc(self.truths, self.probabilities, self.classes)
 
     def precision(self, average):
-        self.precision = sklearn.metrics.precision_score(
-            self.actuals, self.predictions, average=average)
+        elements = np.unique(self.y_test)
+        if len(elements) < 3:
+            pos_label = max(elements)
+            return sklearn.metrics.precision_score(
+                self.y_test, self.predictions, pos_label=pos_label)
+        else:
+            return sklearn.metrics.precision_score(
+                self.y_test, self.predictions, average=average)
 
     def recall(self, average):
-        self.precision = sklearn.metrics.recall_score(
-            self.ctuals, self.predictions, average=average)
+        elements = np.unique(self.y_test)
+        if len(elements) < 3:
+            pos_label = max(elements)
+            return sklearn.metrics.recall_score(
+                self.y_test, self.predictions, pos_label=pos_label)
+        else:
+            return sklearn.metrics.recall_score(
+                self.y_test, self.predictions, average=average)
