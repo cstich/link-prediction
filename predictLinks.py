@@ -50,7 +50,8 @@ def roc(truths, probabilities, classes):
         fpr["micro-0"], tpr["micro-0"], _ = sklearn.metrics.roc_curve(
             truths[:, 1:].ravel(), probabilities[:, 1:].ravel())
         roc_auc["micro-0"] = sklearn.metrics.auc(fpr["micro-0"], tpr["micro-0"])
-
+        roc_auc['weighted'] = sklearn.metrics.roc_auc_score(
+            truths.ravel(), probabilities.ravel(), average='weighted')
         return tpr, fpr, roc_auc
 
 
@@ -87,7 +88,8 @@ def pr(truths, probabilities, classes):
         truths[:, 1:].ravel(), probabilities[:, 1:].ravel())
     pr_auc["micro-0"] = sklearn.metrics.average_precision_score(
         truths[:, 1:], probabilities[:, 1:], average="micro")
-
+    pr_auc['weighted'] = sklearn.metrics.average_precision_score(
+        truths.ravel(), probabilities.ravel(), average='weighted')
     return precision, recall, pr_auc
 
 
@@ -134,6 +136,7 @@ class RandomForestLinkPrediction(object):
         #############################
         clf = sklearn.ensemble.RandomForestClassifier(
             n_estimators=500, oob_score=True, class_weight='balanced',
+            max_depth=20,
             **kwargs)
         clf = clf.fit(X_train, y_train)
 

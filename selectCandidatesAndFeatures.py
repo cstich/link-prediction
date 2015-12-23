@@ -6,15 +6,12 @@ from Metrics import UserMetrics
 from Metrics import generate_triangles
 from PersonalizedPageRank import PersonalizedPageRank
 
-from functools import partial
-
 import predictions
 import Metrics
 import networksAux
 
 import collections
 import copy
-import multiprocessing
 import networkx as nx
 import numpy as np
 import os
@@ -128,7 +125,6 @@ def findValuesForFeatures(X_features, listOfFeatures, features, user, peer):
         except (TypeError, KeyError):
             e = 0
         X_features[user][f].append(e)
-    return X_features
 
 
 def generateFeatureVectorStrings(s, iterable, sep=''):
@@ -237,6 +233,152 @@ def selectModel(X, model, y):
     result = np.asarray(list(zip(*ls)))
     assert len(y) == len(result)
     return result
+
+
+def run(trainingTestingIntervall):
+    trainingIntervall, testingIntervall = trainingTestingIntervall
+    assert trainingIntervall[1] == testingIntervall[0]
+    print('Working on: ', trainingIntervall, '/', testingIntervall)
+    trainingNetworkFile = networkFiles[trainingIntervall]
+    testingNetworkFile = networkFiles[testingIntervall]
+    key, trainingNetwork, nxTrainingNetwork = readNetwork(
+        trainingNetworkFile, nxGraph=True)
+    testingKey, testingNetwork = readNetwork(testingNetworkFile)
+
+    bluesFile = bluesFiles[key]
+    with open(bluesFile, 'rb') as f:
+        blues = pickle.load(f)
+    localizedBluesFile = localizedBluesFiles[key]
+    with open(localizedBluesFile, 'rb') as f:
+        localizedBlues = pickle.load(f)
+    stopLocationsFile = stopLocationsFiles[key]
+    with open(stopLocationsFile, 'rb') as f:
+        stopLocations = pickle.load(f)
+
+    ''' Generate bluetooth bins '''
+    interactionsAtTime = binBlues(blues)
+
+    ''' Generate triangles for all bluetooth bins '''
+    triangles = collections.defaultdict(trianglesLambda)
+    for time, interactions in interactionsAtTime.items():
+        triangles[time] = generate_triangles(interactions)
+
+    ''' Generate user based features '''
+    ''' features = dict()
+    for user in usersForTraining:
+        features[user] = generateFeatures(interactions)'''
+    for user in list(trainingNetwork.keys()):
+        features[user] = generateFeatures(
+            interactionsAtTime, stopLocations, localizedBlues,
+            blues, allUsers, key, triangles, placeEntropy, user)
+
+    generateNetworkFeatures(
+        nxTrainingNetwork, features, networkFunctions, networkLabels)
+
+    ''' Find the propagation scores '''
+    unweightedTrainingNetwork = unweighNetwork(trainingNetwork)
+    normalizedTrainingNetwork = collections.defaultdict(dd_float)
+    for user, peers in trainingNetwork.items():
+        meetings = list(map(lambda x: int(x)+1, list(peers.values())))
+        normalizedMeetings = 0
+        allMeetings = sum(meetings)
+
+        for peer, value in peers.items():
+            normalizedValue = (int(value)+1)/allMeetings
+            normalizedTrainingNetwork[user][peer] = normalizedValue
+            normalizedMeetings += normalizedValue
+    assert normalizedMeetings > 0.9999 and normalizedMeetings < 1.00001
+
+    for user, peers in trainingNetwork.items():
+        ppr = PersonalizedPageRank(
+            unweightedTrainingNetwork, unweightedTrainingNetwork)
+        scores = ppr.pageRank(user, returnScores=True)
+        setPropScores(features, user, scores)
+        weightedPpr = PersonalizedPageRank(
+            unweightedTrainingNetwork, unweightedTrainingNetwork,
+            normalizedTrainingNetwork)
+        weightedScores = weightedPpr.pageRank(user, returnScores=True,
+                                              weighted=True)
+        setPropScores(features, user, weightedScores, 'weightedPropScores')
+
+    A = range(
+        trainingIntervall[0], testingIntervall[0], lengthOfDeltaT)
+    B = range(
+        trainingIntervall[0] + lengthOfDeltaT,
+        testingIntervall[0] + lengthOfDeltaT, lengthOfDeltaT)
+    trainingSplitIntervalls = list(zip(A, B))
+    nullModelTrainingFilenames = [
+        networkFiles[intervall]
+        for intervall in trainingSplitIntervalls]
+    nullModelTestingFilename = networkFiles[testingIntervall]
+
+    results = predictions.createResultsDictionaries()
+    featureImportance = DefaultOrderedDict(list)
+    models = createDictOfFeatures()
+
+    ''' Pass features to predictions script '''
+    ''' And thus skip saving to file '''
+    print('running models')
+
+    ''' Tests to make sure we include all features '''
+    setFeatures = set(listOfFeatures)
+    setFeatures.add('edge')
+    assert set(fullFeatures) == setFeatures
+
+    X = []  # X are features
+    ys = collections.defaultdict(list)  # y are the associated values
+    src_dest_nodes = collections.defaultdict(list)
+    X_features = collections.defaultdict(dd_list)  # X is the training data
+    # organized by feature -> easy to select a certain set
+    for user in allUsers:
+        for peer in allUsers:
+            truth = findTie(testingNetwork,
+                            user, peer, classes)
+            edge = findTie(trainingNetwork, user,
+                           peer, classes)
+            findValuesForFeatures(
+                X_features, listOfFeatures, features,
+                user, peer)
+
+            X_features[user]['edge'].append(edge)
+            ys[user].append(truth)
+            src_dest_nodes[user].append((user, peer))
+
+    castLeaves(src_dest_nodes, np.asarray)
+    castLeaves(ys, np.asarray)
+    castLeaves(X_features, np.asarray)
+
+    for user in allUsers:
+        y = ys[user]
+        if sum(y) == 0:
+            continue
+        X_feature = X_features[user]
+        checkFeature(y, 'y')
+        sdn = src_dest_nodes[user]
+        for key, model in models.items():
+            kf = sklearn.cross_validation.KFold(len(y), n_folds=kfolds)
+            X = selectModel(X_feature, model, y)
+
+            for fold, (train_index, test_index) in enumerate(kf):
+                X_train, X_test = X[train_index], X[test_index]
+                y_train, y_test = y[train_index], y[test_index]
+
+                pred = predictions.Predictions(
+                    X_train, y_train, X_test, y_test,
+                    sdn, results, featureImportance,
+                    nullModelTrainingFilenames,
+                    nullModelTestingFilename,
+                    True, 1, model, testingIntervall,
+                    classesSet, allUsers, outputPath)
+                pred.run(key)
+            pred.export()
+            pred.runNullModel()
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            # TODO Export prediction model
+            # TODO Parralize model
+
+    timestep = str(testingIntervall[0]) + '-' + str(testingIntervall[1])
+    open(outputPath + '/threads/timestep_' + timestep + '.pid', 'w').close()
 
 
 ''' Define the different models '''
@@ -399,7 +541,7 @@ if __name__ == "__main__":
 
     ''' Generate featues '''
     print('Generate features')
-    # features = collections.defaultdict(dd_dict)
+    features = collections.defaultdict(dd_dict)
     networkFunctions = [nx.adamic_adar_index, nx.jaccard_coefficient,
                         nx.preferential_attachment,
                         nx.resource_allocation_index]
@@ -416,167 +558,13 @@ if __name__ == "__main__":
                                                       lengthOfDeltaT)
     trainingTestingIntervalls = zip(timeIntervalls,
                                     testingIntervalls)
+    completedIntervalls = set(parser.readFiles(
+        outputPath + '/threads/', re.compile('timestep_[0-9-]+\.pid'),
+        generateKey=True, transformKey=transformKey).keys())
+
+    trainingTestingIntervalls = [key for key in trainingTestingIntervalls if
+                                 key not in completedIntervalls]
 
     # TODO Parallize this
-    # First put it into a function
-    for trainingIntervall, testingIntervall in trainingTestingIntervalls:
-        assert trainingIntervall[1] == testingIntervall[0]
-        if testingIntervall in completedTimesteps:
-            continue
-        progress += 1
-        print(progress/len(networkFiles))
-        print('Working on: ', trainingIntervall, '/', testingIntervall)
-        trainingNetworkFile = networkFiles[trainingIntervall]
-        testingNetworkFile = networkFiles[testingIntervall]
-        key, trainingNetwork, nxTrainingNetwork = readNetwork(
-            trainingNetworkFile, nxGraph=True)
-        testingKey, testingNetwork = readNetwork(testingNetworkFile)
-
-        bluesFile = bluesFiles[key]
-        with open(bluesFile, 'rb') as f:
-            blues = pickle.load(f)
-        localizedBluesFile = localizedBluesFiles[key]
-        with open(localizedBluesFile, 'rb') as f:
-            localizedBlues = pickle.load(f)
-        stopLocationsFile = stopLocationsFiles[key]
-        with open(stopLocationsFile, 'rb') as f:
-            stopLocations = pickle.load(f)
-
-        ''' Generate bluetooth bins '''
-        interactionsAtTime = binBlues(blues)
-
-        ''' Generate triangles for all bluetooth bins '''
-        triangles = collections.defaultdict(trianglesLambda)
-        for time, interactions in interactionsAtTime.items():
-            triangles[time] = generate_triangles(interactions)
-
-        ''' Generate user based features '''
-        usersForTraining = list(trainingNetwork.keys())
-        featureArgs = [interactionsAtTime, stopLocations, localizedBlues, blues, allUsers,
-                key, triangles, placeEntropy]
-        # argsWithUsers = [[user] + args for user in usersForTraining]
-        # generateFeatures(*args)
-        features = dict()
-        for user in usersForTraining:
-            features[user] = generateFeatures(*featureArgs, user=user)
-
-        # Before ~35 seconds for the features
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
-        generateNetworkFeatures(
-            nxTrainingNetwork, features, networkFunctions, networkLabels)
-
-        ''' Find the propagation scores '''
-        unweightedTrainingNetwork = unweighNetwork(trainingNetwork)
-        normalizedTrainingNetwork = collections.defaultdict(dd_float)
-        for user, peers in trainingNetwork.items():
-            meetings = list(map(lambda x: int(x)+1, list(peers.values())))
-            normalizedMeetings = 0
-            allMeetings = sum(meetings)
-            for peer, value in peers.items():
-                normalizedValue = (int(value)+1)/allMeetings
-                normalizedTrainingNetwork[user][peer] = normalizedValue
-                normalizedMeetings += normalizedValue
-            assert normalizedMeetings > 0.9999 and normalizedMeetings < 1.00001
-
-        for user, peers in trainingNetwork.items():
-            ppr = PersonalizedPageRank(
-                unweightedTrainingNetwork, unweightedTrainingNetwork)
-            scores = ppr.pageRank(user, returnScores=True)
-            setPropScores(features, user, scores)
-            weightedPpr = PersonalizedPageRank(
-                unweightedTrainingNetwork, unweightedTrainingNetwork,
-                normalizedTrainingNetwork)
-            weightedScores = weightedPpr.pageRank(user, returnScores=True,
-                                                  weighted=True)
-            setPropScores(features, user, weightedScores, 'weightedPropScores')
-
-        ''' Restrict the search space to friends of friends '''
-        friendFriends = Metrics.friendFriends(trainingNetwork)
-        nullModelTrainingIntervall = (testingIntervall[0]-lengthOfDeltaT,
-                                      testingIntervall[0])
-        nullModelTrainingNetworkFile = networkFiles[nullModelTrainingIntervall]
-        nullModelTestingNetworkFile = networkFiles[testingIntervall]
-
-        results = predictions.createResultsDictionaries()
-        featureImportance = DefaultOrderedDict(list)
-        models = createDictOfFeatures()
-
-        ''' Pass features to predictions script '''
-        ''' And thus skip saving to file '''
-        print('running models')
-
-        ''' Tests to make sure we include all features '''
-        setFeatures = set(listOfFeatures)
-        setFeatures.add('edge')
-        assert set(fullFeatures) == setFeatures
-
-        # TODO Select cross-validation folds via sklearn
-        X = []  # X are features
-        ys = collections.defaultdict(list)  # y are the associated values
-        src_dest_nodes = collections.defaultdict(list)
-        X_features = collections.defaultdict(dd_list)  # X is the training data
-        # organized by feature -> easy to select a certain set
-        # TODO Switch to a user based model
-        for user in allUsers:
-            try:
-                peers = set(trainingNetwork[user].keys())
-            except KeyError:
-                peers = set()
-            peersPeers = friendFriends[user]
-            candidatesForSearchSpace = peers | peersPeers
-
-            # for peer in candidatesForSearchSpace:
-            for peer in allUsers:
-                row = []
-                truth = findTie(testingNetwork,
-                                user, peer, classes)
-                edge = findTie(trainingNetwork, user,
-                               peer, classes)
-                valuesFeatures = findValuesForFeatures(
-                    X_features, listOfFeatures, features,
-                    user, peer)
-
-                X_features[user]['edge'].append(edge)
-                ys[user].append(truth)
-                src_dest_nodes[user].append((user, peer))
-
-        castLeaves(src_dest_nodes, np.asarray)
-        castLeaves(ys, np.asarray)
-        castLeaves(X_features, np.asarray)
-
-        # TODO Test the null model with two identical networks
-        for user in allUsers:
-            y = ys[user]
-            if sum(y) == 0:
-                continue
-            X_feature = X_features[user]
-            # for key, feature in X_feature.items():
-            #     checkFeature(feature, key)
-            checkFeature(y, 'y')
-            sdn = src_dest_nodes[user]
-            for key, model in models.items():
-                kf = sklearn.cross_validation.KFold(len(y), n_folds=kfolds)
-                X = selectModel(X_feature, model, y)
-
-                for fold, (train_index, test_index) in enumerate(kf):
-                    X_train, X_test = X[train_index], X[test_index]
-                    y_train, y_test = y[train_index], y[test_index]
-                    # sdn_test = sdn[test_index]
-
-                    pred = predictions.Predictions(
-                        X_train, y_train, X_test, y_test,
-                        sdn, results, featureImportance,
-                        nullModelTrainingNetworkFile,
-                        nullModelTestingNetworkFile,
-                        True, 1, model, testingIntervall,
-                        classesSet, allUsers, outputPath)
-                    # TODO This order of calls does not properly work yet
-                    # TODO I don't think I can just fill up the empty probabilities
-                    pred.runNullModel()
-                    pred.run(key)
-                pred.export(fold)
-                # TODO Export prediction model
-                # TODO Parralize model
-
-        timestep = str(testingIntervall[0]) + '-' + str(testingIntervall[1])
-        open(outputPath + '/threads/timestep_' + timestep + '.pid', 'w').close()
+    for trainingTestingIntervall in trainingTestingIntervalls:
+        run(trainingTestingIntervall)
