@@ -356,7 +356,7 @@ def run(trainingTestingIntervall):
         checkFeature(y, 'y')
         sdn = src_dest_nodes[user]
         for key, model in models.items():
-            kf = sklearn.cross_validation.KFold(len(y), n_folds=kfolds)
+            kf = sklearn.cross_validation.KFold(len(y), n_folds=3)
             X = selectModel(X_feature, model, y)
 
             for fold, (train_index, test_index) in enumerate(kf):
