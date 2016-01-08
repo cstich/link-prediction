@@ -1,4 +1,4 @@
-from gs.dictAux import dd_list
+from gs.dictAux import castLeaves, dd_list
 
 import collections
 import networksAux
@@ -11,7 +11,6 @@ class NullModel(object):
     ''' NullModel unstable implementation '''
 
     def __init__(self, networkFilenames, testingNetworkFilename, classes, nodes):
-        # we need to read in the full network and not its sparse representation
         classes = sorted(list(classes))
 
         examples = collections.defaultdict(dd_list)
@@ -29,7 +28,7 @@ class NullModel(object):
                         examples[node][peer].append(fc)
 
         actuals = collections.defaultdict(dict)
-        stringActuals = list()
+        stringActuals = collections.defaultdict(list)
         tempNetwork = networksAux.constructNetworkFromFile(
             testingNetworkFilename, True)
 
@@ -42,11 +41,11 @@ class NullModel(object):
                     except KeyError:
                         fc = 0
                     actuals[node][peer] = fc
-                    stringActuals.append(fc)
+                    stringActuals[node].append(fc)
 
         ''' Get probabilities based on frequency '''
-        probabilities = list()
-        prediction = list()
+        probabilities = collections.defaultdict(list)
+        prediction = collections.defaultdict(list)
         for node in nodes:
             for peer in nodes:
                 if node != peer:
@@ -55,13 +54,13 @@ class NullModel(object):
                     length = len(observations)
                     row = [count[cl]/length for cl in classes]
                     assert sum(row) > 0.9999 or sum(row) < 1.0001
-                    probabilities.append(row)
-                    prediction.append(count.most_common(1)[0][0])
+                    probabilities[node].append(row)
+                    prediction[node].append(count.most_common(1)[0][0])
 
-        probabilities = np.asarray(probabilities)
-        prediction = np.asarray(prediction)
+        # probabilities = np.asarray(probabilities)
+        # prediction = np.asarray(prediction)
 
-        self.examples = examples
+        # self.examples = examples
         self.classes = classes
         self.nodes = list(nodes)  # Nodes have to be ordered for the alignment
         # of stringActuals and the prediction
@@ -69,10 +68,19 @@ class NullModel(object):
         # self.stringExamples = self.createString(examples)
         self.actuals = actuals
         self.stringActuals = stringActuals
+        castLeaves(probabilities, np.array)
         self.probabilities = probabilities
+
+        # TODO This should also be a numpy array somehow
+
         self.prediction = prediction
-        self.truths = pl.createTruthArray(self.stringActuals, self.classes)
-        self.acc = self.acc()
+        truths = dict()
+        for node in nodes:
+            truths[node] = pl.createTruthArray(self.stringActuals[node],
+                                               self.classes)
+        self.truths = truths
+        # self.truths = pl.createTruthArray(self.stringActuals, self.classes)
+        # self.acc = self.acc()
 
     def acc(self):
         return sklearn.metrics.accuracy_score(

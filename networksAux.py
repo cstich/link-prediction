@@ -40,6 +40,7 @@ def mapSecondsToFriendshipClass(seconds):
     else:
         raise ValueError
     '''
+
     if seconds >= 0 and seconds < 300:
         return 1
     elif seconds >= 300:

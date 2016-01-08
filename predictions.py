@@ -2,9 +2,12 @@ from gs.dictAux import DefaultOrderedDict
 from predictLinks import RandomForestLinkPrediction as rf
 from nullModel import NullModel
 
+import predictLinks as pl
+
 import numpy as np
 import os
 import pytz
+import sklearn.metrics
 import statistics
 
 amsterdam = pytz.timezone('Europe/Amsterdam')
@@ -19,14 +22,16 @@ def scoreModels(model, dictionaries, key):
     recMacro = model.recall('macro')
     recMicro = model.recall('micro')
     try:
-        roc_weight = model.calculateROC()[2]['weighted']
-        roc_macro = model.calculateROC()[2]['macro']
-        roc_micro = model.calculateROC()[2]['micro']
-        roc_micro_0 = model.calculateROC()[2]['micro-0']
-        pr_weight = model.calculatePR()[2]['weighted']
-        pr_macro = model.calculatePR()[2]['macro']
-        pr_micro = model.calculatePR()[2]['micro']
-        pr_micro_0 = model.calculatePR()[2]['micro-0']
+        roc_auc = model.calculateROC()
+        roc_weight = roc_auc[2]['weighted']
+        roc_macro = roc_auc[2]['macro']
+        roc_micro = roc_auc[2]['micro']
+        roc_micro_0 = roc_auc[2]['micro-0']
+        pr_auc = model.calculatePR()
+        pr_weight = pr_auc[2]['weighted']
+        pr_macro = pr_auc[2]['macro']
+        pr_micro = pr_auc[2]['micro']
+        pr_micro_0 = pr_auc[2]['micro-0']
     except ValueError:
         roc_weight = np.nan
         roc_macro = np.nan
@@ -36,8 +41,7 @@ def scoreModels(model, dictionaries, key):
         pr_macro = np.nan
         pr_micro = np.nan
         pr_micro_0 = np.nan
-    # roc_macro_pos = model.calculateROC()[2]['macro']
-    # pr_macro_pos = model.calculatePR()[2]['macro']
+
     scores = acc, precWeight, precMacro, precMicro,\
         recWeight, recMacro, recMicro,\
         roc_weight, roc_macro, roc_micro, roc_micro_0,\
@@ -71,9 +75,10 @@ def createResultsDictionaries():
 class Predictions(object):
     def __init__(self, X_train, y_train, X_test, y_test,
                  src_dest_nodes, results, featureImportance,
-                 networkTrainingFilenames, networkTestingFilename,
-                 weighted, n_jobs,
-                 model, timestep, classesSet, allUsers, outputPath, **kwargs):
+                 nullModelProbabilities, nullModelTruths,
+                 nullModelStringActuals, nullModelPrediction,
+                 weighted, n_jobs, model, classesSet,
+                 outputPath, **kwargs):
 
         self.y_train = y_train
         self.X_train = X_train
@@ -82,24 +87,78 @@ class Predictions(object):
         self.src_dest_nodes = src_dest_nodes
         self.results = results
         self.featureImportance = featureImportance
-        self.networkTrainingFilenames = networkTrainingFilenames
-        self.networkTestingFilename = networkTestingFilename
+        self.nullModelTruths = nullModelTruths
+        self.nullModelProbabilities = nullModelProbabilities
+        self.nullModelStringActuals = nullModelStringActuals
+        self.nullModelPrediction = nullModelPrediction
         self.weighted = weighted
         self.classesSet = classesSet
         self.classesList = sorted(list(classesSet))
-        self.allUsers = allUsers
         self.n_jobs = n_jobs
         self.model = model
-        self.timestep = timestep
         self.outputPath = outputPath
         assert len(X_train) == len(y_train)
         assert len(X_test) == len(y_test)
 
-    def runNullModel(self):
-        NM = NullModel(
-            self.networkTrainingFilenames, self.networkTestingFilename,
-            self.classesSet, self.allUsers)
-        scoreModels(NM, self.results, 'null')
+    def scoreNullModel(self):
+        acc = sklearn.metrics.accuracy_score(
+            self.nullModelStringActuals,
+            self.nullModelPrediction)
+
+        precWeight = sklearn.metrics.precision_score(
+            self.nullModelStringActuals,
+            self.nullModelPrediction,
+            'weighted')
+        precMacro = sklearn.metrics.precision_score(
+            self.nullModelStringActuals,
+            self.nullModelPrediction,
+            'macro')
+        precMicro = sklearn.metrics.precision_score(
+            self.nullModelStringActuals,
+            self.nullModelPrediction,
+            'micro')
+        recWeight = sklearn.metrics.recall_score(
+            self.nullModelStringActuals,
+            self.nullModelPrediction,
+            'weighted')
+        recMacro = sklearn.metrics.recall_score(
+            self.nullModelStringActuals,
+            self.nullModelPrediction,
+            'macro')
+        recMicro = sklearn.metrics.recall_score(
+            self.nullModelStringActuals,
+            self.nullModelPrediction,
+            'micro')
+
+        try:
+            roc_auc = pl.roc(self.nullModelTruths, self.nullModelProbabilities,
+                             self.classesList)
+            roc_weight = roc_auc[2]['weighted']
+            roc_macro = roc_auc[2]['macro']
+            roc_micro = roc_auc[2]['micro']
+            roc_micro_0 = roc_auc[2]['micro-0']
+            pr_auc = pl.pr(self.nullModelTruths, self.nullModelProbabilities,
+                           self.classesList)
+            pr_weight = pr_auc[2]['weighted']
+            pr_macro = pr_auc[2]['macro']
+            pr_micro = pr_auc[2]['micro']
+            pr_micro_0 = pr_auc[2]['micro-0']
+        except ValueError:
+            roc_weight = np.nan
+            roc_macro = np.nan
+            roc_micro = np.nan
+            roc_micro_0 = np.nan
+            pr_weight = np.nan
+            pr_macro = np.nan
+            pr_micro = np.nan
+            pr_micro_0 = np.nan
+
+        scores = acc, precWeight, precMacro, precMicro,\
+            recWeight, recMacro, recMicro,\
+            roc_weight, roc_macro, roc_micro, roc_micro_0,\
+            pr_weight, pr_macro, pr_micro, pr_micro_0
+        for d, score in zip(self.results, scores):
+            d['null'].append(score)
 
     def run(self, modelName):
         model = rf(self.X_train, self.y_train,
@@ -108,20 +167,11 @@ class Predictions(object):
                    self.classesList, n_jobs=self.n_jobs)
         scoreModels(model, self.results, modelName)
         self.featureImportance[modelName].append(model.importances)
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
-    def getScores(self):
-        return self.results
-
-    def getFeatureImportance(self):
-        return self.featureImportance
-
-    def export(self):
-        if not os.path.isfile(self.outputPath + 'modelTimeseriesData_' +
-                              str(self.timestep[0]) + '-' +
-                              str(self.timestep[1]) + '.ssv'):
-            with open(self.outputPath + 'modelTimeseriesData.ssv', 'w') as f:
-                header = ' '.join(['timepoint', 'model',
+    def export(self, user):
+        if not os.path.isfile(self.outputPath + 'modelData.ssv'):
+            with open(self.outputPath + 'modelData.ssv', 'w') as f:
+                header = ' '.join(['user', 'model',
                                    'accuracy', 'precision_weighted',
                                    'precision_macro', 'precision_micro',
                                    'recall_weighted',
@@ -132,8 +182,8 @@ class Predictions(object):
                                    'pr_micro', 'pr_micro-0']) + '\n'
                 f.write(header)
 
-        with open(self.outputPath + 'modelTimeseriesData.ssv', 'a') as f:
-            print('Exporting: ', self.timestep)
+        with open(self.outputPath + 'modelData.ssv', 'a') as f:
+            print('Exporting: ', user)
             for key, accs in self.results[0].items():
                 prec_weights = self.results[1][key]
                 prec_macros = self.results[2][key]
@@ -159,7 +209,7 @@ class Predictions(object):
                         roc_weights, roc_macros, roc_micros, roc_micro_0s,
                         pr_weights, pr_macros, pr_micros, pr_micro_0s
                         ):
-                    row = ' '.join([str(self.timestep[0]), str(key),
+                    row = ' '.join([str(user), str(key),
                                     str(acc),
                                     str(prec_weight), str(prec_mac),
                                     str(prec_mic),
@@ -181,7 +231,7 @@ class Predictions(object):
 
         if not os.path.isfile(self.outputPath + 'featureImportance.ssv'):
             with open(self.outputPath + 'featureImportance.ssv', 'w') as f:
-                header = ' '.join(['timepoint', 'model',
+                header = ' '.join(['user', 'model',
                                    'testSet', 'feature',
                                    'importance']) + '\n'
                 f.write(header)
@@ -191,7 +241,7 @@ class Predictions(object):
                 for importances in values:
                     for feature, importance in zip(self.model,
                                                    importances):
-                        row = ' '.join([str(self.timestep[0]), str(key),
+                        row = ' '.join([str(user), str(key),
                                         str(feature),
                                         str(importance)]) + '\n'
                         f.write(row)

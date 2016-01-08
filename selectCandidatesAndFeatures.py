@@ -1,17 +1,16 @@
 from gs import parser
-from gs.dictAux import castLeaves, dd_dict, dd_float, dd_list, dd_set,\
-    DefaultOrderedDict
+from gs.dictAux import dd_dict, dd_float, dd_set
 
 from Metrics import UserMetrics
 from Metrics import generate_triangles
 from PersonalizedPageRank import PersonalizedPageRank
 
-import predictions
-import Metrics
 import networksAux
+import nullModel
 
 import collections
 import copy
+import multiprocessing as mp
 import networkx as nx
 import numpy as np
 import os
@@ -19,7 +18,6 @@ import pickle
 import pytz
 import re
 import resource
-import sklearn.cross_validation
 import sys
 import warnings
 
@@ -118,13 +116,13 @@ def setPropScores(features, user, scores, name='propScores'):
             features[user][name][peer] = s[1]
 
 
-def findValuesForFeatures(X_features, listOfFeatures, features, user, peer):
+def findValuesForFeatures(X, listOfFeatures, features, user, peer):
     for f in listOfFeatures:
         try:
             e = features[user][f][peer]
         except (TypeError, KeyError):
             e = 0
-        X_features[user][f].append(e)
+        X[f].append(e)
 
 
 def generateFeatureVectorStrings(s, iterable, sep=''):
@@ -235,7 +233,7 @@ def selectModel(X, model, y):
     return result
 
 
-def run(trainingTestingIntervall):
+def featureWrapper(trainingTestingIntervall):
     trainingIntervall, testingIntervall = trainingTestingIntervall
     assert trainingIntervall[1] == testingIntervall[0]
     print('Working on: ', trainingIntervall, '/', testingIntervall)
@@ -244,6 +242,18 @@ def run(trainingTestingIntervall):
     key, trainingNetwork, nxTrainingNetwork = readNetwork(
         trainingNetworkFile, nxGraph=True)
     testingKey, testingNetwork = readNetwork(testingNetworkFile)
+
+    ''' nullModel filenames '''
+    a = range(trainingIntervall[0], trainingIntervall[1],
+              lengthOfDeltaT)
+    b = range(trainingIntervall[0] + lengthOfDeltaT,
+              trainingIntervall[1] + lengthOfDeltaT,
+              lengthOfDeltaT)
+    nullModelIntervalls = list(zip(a, b))
+    nullModelTrainingFilenames = [networkFiles[intervall]
+                                  for intervall in nullModelIntervalls]
+    nM = nullModel.NullModel(
+            nullModelTrainingFilenames, testingNetworkFile, classesSet, allUsers)
 
     bluesFile = bluesFiles[key]
     with open(bluesFile, 'rb') as f:
@@ -264,9 +274,6 @@ def run(trainingTestingIntervall):
         triangles[time] = generate_triangles(interactions)
 
     ''' Generate user based features '''
-    ''' features = dict()
-    for user in usersForTraining:
-        features[user] = generateFeatures(interactions)'''
     for user in list(trainingNetwork.keys()):
         features[user] = generateFeatures(
             interactionsAtTime, stopLocations, localizedBlues,
@@ -301,85 +308,39 @@ def run(trainingTestingIntervall):
                                               weighted=True)
         setPropScores(features, user, weightedScores, 'weightedPropScores')
 
-    A = range(
-        trainingIntervall[0], testingIntervall[0], lengthOfDeltaT)
-    B = range(
-        trainingIntervall[0] + lengthOfDeltaT,
-        testingIntervall[0] + lengthOfDeltaT, lengthOfDeltaT)
-    trainingSplitIntervalls = list(zip(A, B))
-    nullModelTrainingFilenames = [
-        networkFiles[intervall]
-        for intervall in trainingSplitIntervalls]
-    nullModelTestingFilename = networkFiles[testingIntervall]
-
-    results = predictions.createResultsDictionaries()
-    featureImportance = DefaultOrderedDict(list)
-    models = createDictOfFeatures()
-
-    ''' Pass features to predictions script '''
-    ''' And thus skip saving to file '''
-    print('running models')
-
     ''' Tests to make sure we include all features '''
     setFeatures = set(listOfFeatures)
     setFeatures.add('edge')
     assert set(fullFeatures) == setFeatures
 
-    X = []  # X are features
-    ys = collections.defaultdict(list)  # y are the associated values
-    src_dest_nodes = collections.defaultdict(list)
-    X_features = collections.defaultdict(dd_list)  # X is the training data
-    # organized by feature -> easy to select a certain set
+    timestep = str(testingIntervall[0])+'-'+str(testingIntervall[1])
     for user in allUsers:
+        # X = []  # X are features
+        X = collections.defaultdict(list)  # X is the training data
+        y = list()  # y are the associated values
+        src_dest_nodes = list()
+        # organized by feature -> easy to select a certain set
+
         for peer in allUsers:
             truth = findTie(testingNetwork,
                             user, peer, classes)
             edge = findTie(trainingNetwork, user,
                            peer, classes)
             findValuesForFeatures(
-                X_features, listOfFeatures, features,
+                X, listOfFeatures, features,
                 user, peer)
 
-            X_features[user]['edge'].append(edge)
-            ys[user].append(truth)
-            src_dest_nodes[user].append((user, peer))
-
-    castLeaves(src_dest_nodes, np.asarray)
-    castLeaves(ys, np.asarray)
-    castLeaves(X_features, np.asarray)
-
-    for user in allUsers:
-        y = ys[user]
-        if sum(y) == 0:
-            continue
-        X_feature = X_features[user]
-        checkFeature(y, 'y')
-        sdn = src_dest_nodes[user]
-        for key, model in models.items():
-            kf = sklearn.cross_validation.KFold(len(y), n_folds=3)
-            X = selectModel(X_feature, model, y)
-
-            for fold, (train_index, test_index) in enumerate(kf):
-                X_train, X_test = X[train_index], X[test_index]
-                y_train, y_test = y[train_index], y[test_index]
-
-                pred = predictions.Predictions(
-                    X_train, y_train, X_test, y_test,
-                    sdn, results, featureImportance,
-                    nullModelTrainingFilenames,
-                    nullModelTestingFilename,
-                    True, 1, model, testingIntervall,
-                    classesSet, allUsers, outputPath)
-                pred.run(key)
-            pred.export()
-            pred.runNullModel()
-            import pdb; pdb.set_trace()  # XXX BREAKPOINT
-            # TODO Export prediction model
-            # TODO Parralize model
-
-    timestep = str(testingIntervall[0]) + '-' + str(testingIntervall[1])
+            X['edge'].append(edge)
+            y.append(truth)
+            src_dest_nodes.append((user, peer))
+        nMData = dict(prediction=nM.prediction[user], probabilities=nM.probabilities[user],
+                      actuals=nM.stringActuals[user], truths=nM.truths[user])
+        user_data = dict(X=X, y=y, sdn=src_dest_nodes,
+                         nullModel=nMData)
+        filename = outputPath+'/user_'+str(user)+'_timestep_'+timestep+'.pck'
+        with open(filename, 'wb') as f:
+            pickle.dump(user_data, f)
     open(outputPath + '/threads/timestep_' + timestep + '.pid', 'w').close()
-
 
 ''' Define the different models '''
 # TODO Update features
@@ -558,13 +519,20 @@ if __name__ == "__main__":
                                                       lengthOfDeltaT)
     trainingTestingIntervalls = zip(timeIntervalls,
                                     testingIntervalls)
-    completedIntervalls = set(parser.readFiles(
-        outputPath + '/threads/', re.compile('timestep_[0-9-]+\.pid'),
-        generateKey=True, transformKey=transformKey).keys())
 
     trainingTestingIntervalls = [key for key in trainingTestingIntervalls if
-                                 key not in completedIntervalls]
+                                 key not in completedTimesteps]
 
-    # TODO Parallize this
-    for trainingTestingIntervall in trainingTestingIntervalls:
-        run(trainingTestingIntervall)
+    # Parallization
+    pool = mp.Pool(6)
+    pool.map(featureWrapper, trainingTestingIntervalls)
+    # list(map(featureWrapper, trainingTestingIntervalls))
+
+    threadPath = outputPath+'threads'
+    for the_file in os.listdir(threadPath):
+        file_path = os.path.join(threadPath, the_file)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+        except Exception as e:
+            print(e)
